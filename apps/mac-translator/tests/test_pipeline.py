@@ -143,7 +143,14 @@ def test_translation_request_context_and_invalid_output():
 
     def handle(request):
         requests.append(__import__("json").loads(request.content))
-        return httpx.Response(200, json={"choices": [{"message": {"content": "อยู่ใกล้ฉันไว้"}}]})
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": "อยู่ใกล้ฉันไว้" if len(requests) == 1 else "ประตูถูกล็อกอยู่"}}
+                ]
+            },
+        )
 
     t = APITranslator(
         "http://127.0.0.1/v1",
@@ -152,18 +159,115 @@ def test_translation_request_context_and_invalid_output():
     )
     assert t.translate("Stay close to me.") == "อยู่ใกล้ฉันไว้"
     t.translate("The gate is locked.")
-    assert "Stay close to me." in requests[-1]["messages"][-1]["content"]
+    assert requests[-1]["messages"][-1]["content"] == "The gate is locked."
+    assert requests[-1]["messages"][1]["content"] == "Stay close to me."
     t.close()
 
 
 def test_lost_connection_mid_response_retries():
     calls = []
+
     def handle(request):
         calls.append(request)
         raise httpx.RemoteProtocolError("peer closed")
-    p = Publisher("127.0.0.1", "x" * 24, sleep=lambda _: None,
-                  client=httpx.Client(transport=httpx.MockTransport(handle)))
+
+    p = Publisher(
+        "127.0.0.1",
+        "x" * 24,
+        sleep=lambda _: None,
+        client=httpx.Client(transport=httpx.MockTransport(handle)),
+    )
     with pytest.raises(RuntimeError, match="three"):
         p.send(Caption.new("ไทย"))
     assert len(calls) == 3
     p.close()
+
+
+def test_asr_in_memory_wav_contract():
+    from ps5_thai_sub.providers import WhisperServer
+
+    captured = []
+
+    def handle(request):
+        captured.append(request)
+        return httpx.Response(200, json={"text": " We have to leave before dawn. "})
+
+    asr = WhisperServer("http://127.0.0.1:8080")
+    asr.client.close()
+    asr.client = httpx.Client(
+        base_url="http://127.0.0.1:8080", transport=httpx.MockTransport(handle)
+    )
+    assert asr.transcribe(np.zeros(16000, dtype=np.float32)) == "We have to leave before dawn."
+    assert captured[0].url.path == "/inference"
+    assert b"RIFF" in captured[0].content and b"WAVE" in captured[0].content
+    assert b'name="language"' in captured[0].content
+    asr.close()
+
+
+def test_translation_rejects_empty_non_thai_or_unbounded():
+    for output in ["", "invented English only", "ก" * 501]:
+        client = httpx.Client(
+            base_url="http://127.0.0.1/v1/",
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200, json={"choices": [{"message": {"content": output}}]}
+                )
+            ),
+        )
+        t = APITranslator("http://127.0.0.1/v1", "test", client=client)
+        with pytest.raises(ValueError):
+            t.translate("Hello")
+        t.close()
+
+
+def test_short_noise_does_not_create_utterance():
+    vad = Segmenter()
+    speech = np.sin(np.arange(320) * 0.1).astype(np.float32) * 0.1
+    for i in range(3):
+        assert vad.feed(speech, i * 0.02) is None
+    for i in range(30):
+        assert vad.feed(np.zeros(320, dtype=np.float32), 1 + i * 0.02) is None
+
+
+def test_microphone_backpressure_keeps_latest(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    from ps5_thai_sub.audio import Microphone, Utterance
+
+    callbacks = []
+
+    class FakeStream:
+        def __init__(self, **kwargs):
+            callbacks.append(kwargs["callback"])
+
+    monkeypatch.setitem(
+        sys.modules,
+        "sounddevice",
+        SimpleNamespace(check_input_settings=lambda **kw: None, InputStream=FakeStream),
+    )
+    microphone = Microphone()
+    utterances = iter(Utterance(np.zeros(320), float(i)) for i in range(3))
+    microphone.segmenter.feed = lambda *args: next(utterances)
+    for _ in range(3):
+        callbacks[0](np.zeros((320, 1)), 320, None, None)
+    assert microphone.pending.qsize() == 1
+    assert microphone.next().ended_at == 2
+    assert microphone.dropped == 2
+
+
+def test_context_echo_rejected():
+    client = httpx.Client(
+        base_url="http://127.0.0.1/v1/",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200, json={"choices": [{"message": {"content": "อยู่ใกล้ฉันไว้"}}]}
+            )
+        ),
+    )
+    t = APITranslator("http://127.0.0.1/v1", "test", client=client)
+    t.translate("Stay close to me.")
+    with pytest.raises(ValueError, match="echoed"):
+        t.translate("The gate is locked.")
+    assert len(t.context) == 1
+    t.close()

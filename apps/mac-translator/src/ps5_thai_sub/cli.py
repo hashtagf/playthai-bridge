@@ -51,12 +51,12 @@ def main():
     run.add_argument("--vad-threshold", type=float, default=0.015)
     run.add_argument("--demo-once", action="store_true", help="Exit after three fixture captions")
     run.add_argument(
-        "--whisper-url", default=os.getenv("WHISPER_SERVER_URL", "http://127.0.0.1:8080")
+        "--whisper-url", default=os.getenv("WHISPER_SERVER_URL", "http://127.0.0.1:18080")
     )
     run.add_argument(
         "--translation-url", default=os.getenv("TRANSLATION_BASE_URL", "http://127.0.0.1:11434/v1")
     )
-    run.add_argument("--model", default=os.getenv("TRANSLATION_MODEL", "qwen2.5:7b"))
+    run.add_argument("--model", default=os.getenv("TRANSLATION_MODEL", "gemma3:4b"))
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
