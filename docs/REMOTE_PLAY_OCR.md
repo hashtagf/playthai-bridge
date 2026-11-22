@@ -100,3 +100,12 @@ Chat is translated as the visible region, not an incremental message feed. Adjus
 avoid HUD or overlapping text. This mode replaces audio input; it does not run alongside it.
 Actual development check captured 10 subtitle characters and 0 chat characters; the chat
 position and readability must be verified while messages are visible in the game.
+
+0.3.4 adds --ocr-phone and --ocr-phone-region. Phone crop defaults to 0.35,0.23,0.27,0.59.
+A configurable center crop with >=60 recognized characters and >=10 words takes priority
+while the phone is open; otherwise normal subtitle/chat regions are processed. This is a
+text-density heuristic, not a visual phone detector: short messages may be missed and other
+text-heavy center panels can trigger it. It does not scroll or operate the phone for the user.
+51 tests pass including return to subtitles after phone text disappears. Live session uses
+subtitle 0.15,0.70,0.60,0.25; chat 0.79,0.77,0.20,0.21; phone 0.35,0.20,0.27,0.65,
+based on inspection of the actual Remote Play window. Audio capture is stopped for OCR.

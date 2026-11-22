@@ -68,3 +68,12 @@ Speech filtering 0.3.1: strict WebRTC speech gate for Remote Play audio plus sou
 0.3.2 latency tuning: app audio collection cap 4s → 2s; silence finalization 500ms → 300ms; stage timings added without dialogue logs. Strict speech filtering and OpenThai preserved. 49 tests and mypy pass. Shorter chunks trade sentence context for earlier results; total live latency still needs observation.
 
 0.3.3: optional --ocr-chat adds independently stabilized bottom-right OCR alongside the subtitle crop. Combined bounded overlay; no simultaneous audio. 50 tests and mypy pass. Live capture returned subtitle characters but no chat; real chat-region alignment remains unverified.
+
+0.3.4 adds --ocr-phone and --ocr-phone-region. Phone crop defaults to 0.35,0.23,0.27,0.59.
+A configurable center crop with >=60 recognized characters and >=10 words takes priority
+while the phone is open; otherwise normal subtitle/chat regions are processed. This is a
+text-density heuristic, not a visual phone detector: short messages may be missed and other
+text-heavy center panels can trigger it. It does not scroll or operate the phone for the user.
+51 tests pass including return to subtitles after phone text disappears. Live session uses
+subtitle 0.15,0.70,0.60,0.25; chat 0.79,0.77,0.20,0.21; phone 0.35,0.20,0.27,0.65,
+based on inspection of the actual Remote Play window. Audio capture is stopped for OCR.

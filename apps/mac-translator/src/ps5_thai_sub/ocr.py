@@ -184,17 +184,30 @@ class RegionState:
     retry: float = 0.0
 
 
-def run_multi_ocr(source, window_id, crops, translator, publish, interval=0.3, stable_seconds=0.6):
+def run_multi_ocr(
+    source, window_id, crops, translator, publish, interval=0.3, stable_seconds=0.6, phone_crop=None
+):
     """Independently stabilize regions; publish a single combined overlay."""
     states = [RegionState(OCRGate(stable_seconds)) for _ in crops]
+    phone_state = RegionState(OCRGate(stable_seconds))
     last_sent = ""
     last_publish = 0.0
     LOG.info("Window OCR active: %d regions; no audio capture or saved images", len(crops))
     while True:
         started = time.monotonic()
-        for index, (crop, state) in enumerate(zip(crops, states)):
+        active = list(zip(crops, states))
+        phone_text = source.read(window_id, phone_crop) if phone_crop else ""
+        # Text-density heuristic, not a visual phone detector. Keep configurable crop tight.
+        phone_active = len(key(phone_text)) >= 60 and len(phone_text.split()) >= 10
+        if phone_active:
+            active = [(phone_crop, phone_state)]
+        else:
+            phone_state = RegionState(OCRGate(stable_seconds))
+        for index, (crop, state) in enumerate(active):
             now = time.monotonic()
-            ready = state.gate.observe(source.read(window_id, crop), now)
+            ready = state.gate.observe(
+                phone_text if phone_active else source.read(window_id, crop), now
+            )
             if ready is None:
                 continue
             normalized = key(ready)
@@ -214,7 +227,7 @@ def run_multi_ocr(source, window_id, crops, translator, publish, interval=0.3, s
                     state.retry = time.monotonic() + 2
                     LOG.warning("OCR region %d translation failed; retry delayed", index + 1)
         # Deduplicate overlapping crops and respect the TV's UTF-16 length bound.
-        parts = list(dict.fromkeys(state.thai for state in states if state.thai))
+        parts = list(dict.fromkeys(state.thai for _, state in active if state.thai))
         combined = "\n".join(parts)
         combined = combined.encode("utf-16-le")[:1000].decode("utf-16-le", errors="ignore")
         now = time.monotonic()

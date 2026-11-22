@@ -76,6 +76,10 @@ def main():
         default="0.65,0.50,0.35,0.45",
         help="Chat crop: x,y,width,height fractions",
     )
+    run.add_argument(
+        "--ocr-phone", action="store_true", help="Prioritize readable in-game phone text"
+    )
+    run.add_argument("--ocr-phone-region", default="0.35,0.23,0.27,0.59")
     run.add_argument("--ocr-interval", type=float, default=0.3)
     run.add_argument("--ocr-stable-seconds", type=float, default=0.6)
     run.add_argument("--target", help="Literal private IPv4; omit for Mac-only fallback")
@@ -161,8 +165,9 @@ def main():
             raise ValueError("VAD threshold must be between zero and one")
         crop = region(args.ocr_region)
         chat_crop = region(args.ocr_chat_region)
-        if args.ocr_chat and args.input != "remote-play-ocr":
-            raise ValueError("--ocr-chat requires --input remote-play-ocr")
+        phone_crop = region(args.ocr_phone_region)
+        if (args.ocr_chat or args.ocr_phone) and args.input != "remote-play-ocr":
+            raise ValueError("OCR chat/phone requires --input remote-play-ocr")
         if not 0.1 <= args.ocr_interval <= 5 or not 0.2 <= args.ocr_stable_seconds <= 5:
             raise ValueError("OCR interval must be 0.1..5s and stability 0.2..5s")
         publisher = Publisher(args.target, args.token, args.port) if args.target else None
@@ -200,16 +205,29 @@ def main():
             translator.check()
             # Read once before starting to fail clearly on permission/capture errors.
             source.read(window_id, crop)
-            ocr_runner = run_multi_ocr if args.ocr_chat else run_ocr
-            ocr_runner(
-                source,
-                window_id,
-                [crop, chat_crop] if args.ocr_chat else crop,
-                translator,
-                publish,
-                args.ocr_interval,
-                args.ocr_stable_seconds,
-            )
+            if args.ocr_chat or args.ocr_phone:
+                crops = [crop, chat_crop] if args.ocr_chat else [crop]
+                run_multi_ocr(
+                    source,
+                    window_id,
+                    crops,
+                    translator,
+                    publish,
+                    args.ocr_interval,
+                    args.ocr_stable_seconds,
+                    phone_crop=phone_crop if args.ocr_phone else None,
+                )
+            else:
+                run_ocr(
+                    source,
+                    window_id,
+                    crop,
+                    translator,
+                    publish,
+                    args.ocr_interval,
+                    args.ocr_stable_seconds,
+                )
+
         else:
             asr = WhisperServer(args.whisper_url)
             translator = APITranslator(

@@ -125,3 +125,36 @@ def test_multi_region_independent_updates_and_dedup(monkeypatch):
         run_multi_ocr(Regions(), 1, ["subtitle", "chat"], translator, publish, 0.5, 0.5)
     assert translator.calls == ["Hello", "Follow me"]
     assert sent == ["สวัสดี\nตามฉันมา", "ตามฉันมา"]
+
+
+def test_phone_priority_then_returns_to_subtitles(monkeypatch):
+    from ps5_thai_sub.ocr import run_multi_ocr
+
+    clock = Clock()
+    monkeypatch.setattr("ps5_thai_sub.ocr.time.monotonic", clock.monotonic)
+    monkeypatch.setattr("ps5_thai_sub.ocr.time.sleep", clock.sleep)
+    phone = (
+        "Thank you thank you. Money in your mailbox. You got my plane? You better be good to her!"
+    )
+
+    class Regions:
+        def read(self, window, crop):
+            if clock.now >= 3:
+                raise KeyboardInterrupt
+            return (phone if clock.now < 1.5 else "") if crop == "phone" else "Hello"
+
+    class Translate:
+        def translate(self, text):
+            return "ข้อความมือถือ" if text == phone else "สวัสดี"
+
+    sent = []
+
+    def publish(text):
+        sent.append(text)
+        return True
+
+    with pytest.raises(KeyboardInterrupt):
+        run_multi_ocr(
+            Regions(), 1, ["subtitle"], Translate(), publish, 0.5, 0.5, phone_crop="phone"
+        )
+    assert sent == ["ข้อความมือถือ", "", "สวัสดี"]
