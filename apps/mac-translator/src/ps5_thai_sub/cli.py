@@ -6,6 +6,7 @@ import time
 import httpx
 
 from .audio import Microphone
+from .ocr import WindowOCR, region, run_ocr
 from .pipeline import Latencies, Stabilizer
 from .protocol import Caption
 from .providers import SAMPLES, APITranslator, MockTranslator, WhisperServer
@@ -38,9 +39,20 @@ def main():
     parser = argparse.ArgumentParser(description="Mac microphone → Thai subtitle overlay")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("devices", help="List microphone devices; no recording")
+    sub.add_parser("ocr-windows", help="List visible window IDs for OCR selection")
+    sub.add_parser("ocr-permission", help="Request macOS Screen Recording permission")
+    sub.add_parser("ocr-self-test", help="Recognize a synthetic English subtitle without capture")
     run = sub.add_parser("run")
-    run.add_argument("--input", choices=["microphone"], default="microphone")
+    run.add_argument("--input", choices=["microphone", "remote-play-ocr"], default="microphone")
     run.add_argument("--demo", action="store_true")
+    run.add_argument("--window-id", type=int, help="Explicit capture window ID from ocr-windows")
+    run.add_argument(
+        "--ocr-region",
+        default="0.10,0.65,0.80,0.28",
+        help="x,y,width,height normalized from window top-left",
+    )
+    run.add_argument("--ocr-interval", type=float, default=0.3)
+    run.add_argument("--ocr-stable-seconds", type=float, default=0.6)
     run.add_argument("--target", help="Literal private IPv4; omit for Mac-only fallback")
     run.add_argument("--token", default=os.getenv("PS5_TV_TOKEN", ""))
     run.add_argument("--port", type=int, default=8765)
@@ -63,6 +75,21 @@ def main():
     preview = publisher = asr = translator = None
     latency = Latencies()
     try:
+        if args.command.startswith("ocr-"):
+            source = WindowOCR()
+            if args.command == "ocr-windows":
+                for window in source.windows():
+                    print(f"{window['id']} | {window['app']} | {window['title']}")
+            elif args.command == "ocr-permission":
+                granted = source.command("--permission")["granted"]
+                print(
+                    "Screen Recording allowed"
+                    if granted
+                    else "Allow Screen Recording in macOS Settings, then restart the launching app"
+                )
+            else:
+                print(source.command("--self-test")["text"])
+            return
         if args.command == "devices":
             import sounddevice as sd
 
@@ -72,6 +99,9 @@ def main():
             raise ValueError("--demo-once requires --demo")
         if not 0 < args.vad_threshold < 1:
             raise ValueError("VAD threshold must be between zero and one")
+        crop = region(args.ocr_region)
+        if not 0.1 <= args.ocr_interval <= 5 or not 0.2 <= args.ocr_stable_seconds <= 5:
+            raise ValueError("OCR interval must be 0.1..5s and stability 0.2..5s")
         publisher = Publisher(args.target, args.token, args.port) if args.target else None
         preview = Preview(args.preview_port)
         LOG.info("Mac viewer: http://127.0.0.1:%d", preview.port)
@@ -98,6 +128,24 @@ def main():
                     time.sleep(3)
                 if args.demo_once:
                     break
+        elif args.input == "remote-play-ocr":
+            source = WindowOCR()
+            window_id = source.select(args.window_id)
+            translator = APITranslator(
+                args.translation_url, args.model, os.getenv("TRANSLATION_API_KEY", "")
+            )
+            translator.check()
+            # Read once before starting to fail clearly on permission/capture errors.
+            source.read(window_id, crop)
+            run_ocr(
+                source,
+                window_id,
+                crop,
+                translator,
+                publish,
+                args.ocr_interval,
+                args.ocr_stable_seconds,
+            )
         else:
             asr = WhisperServer(args.whisper_url)
             translator = APITranslator(

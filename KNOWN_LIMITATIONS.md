@@ -28,6 +28,7 @@
 - Debug APK signing only. Not Play-reviewed, production hardened, fuzzed or audited.
 - Optional ASR/Ollama dependencies and models are installed separately from uv.lock;
   model licenses are separate. Runtime server logging can contain recognized speech.
-- No OCR/video capture, HDMI compositing, protected-content handling or Remote Play path.
+- Optional Remote Play window OCR is now implemented; actual-game verification pending.
+  No HDMI compositing or protected-content bypass. See docs/REMOTE_PLAY_OCR.md.
 - GitHub draft PR publication and CI execution require a configured remote; local draft,
   branch, patch and build/test evidence are supplied instead.

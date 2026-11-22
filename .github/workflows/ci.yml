@@ -34,3 +34,16 @@ jobs:
       - run: uv run mypy --config-file pyproject.toml src
       - run: uv run pytest -q
       - run: uv run ps5-thai-sub run --demo --demo-once
+
+  mac-ocr:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: apps/mac-translator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - run: uv sync --locked
+      - run: uv run python -c 'from ps5_thai_sub.ocr import WindowOCR; assert WindowOCR().command("--self-test")["text"] == "We have to leave before dawn."'

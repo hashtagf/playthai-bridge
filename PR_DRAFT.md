@@ -43,3 +43,12 @@ gh pr create --draft --base main --head feat/ps5-thai-subtitles --title "Add PS5
 ```
 
 No merge or deployment is part of this change.
+
+## Follow-up: optional Remote Play OCR
+
+Adds window-only ScreenCaptureKit capture and English Apple Vision OCR, configurable
+subtitle crop, stability filtering, duplicate suppression, expiry renewal and stale-result
+rejection. No microphone or Whisper dependency in OCR mode. Native helper builds on first
+run and is included in the wheel as Swift source. 27 Python tests, native OCR/capture
+fixture checks and synthetic OCR-to-TV smoke pass. Actual Remote Play game-session and
+controller coexistence still require user connection and hardware verification.

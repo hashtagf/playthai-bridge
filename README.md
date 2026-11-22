@@ -63,6 +63,14 @@ port forward is needed. The listener rejects public-source addresses and require
 on health as well as captions. HTTP is not encrypted: use only a trusted isolated LAN.
 Mac browser viewer binds loopback only. See [protocol and security limits](packages/protocol/README.md).
 
+## Remote Play OCR (new)
+
+To read English subtitles directly from PS Remote Play instead of the microphone, use
+`--input remote-play-ocr`. [Setup and region calibration](docs/REMOTE_PLAY_OCR.md).
+This optional mode uses Apple ScreenCaptureKit + Vision, then the same Thai translator
+and TV bridge. It needs Screen Recording permission, not Whisper. It is implemented and
+synthetic-window tested; actual Remote Play game-session validation is pending.
+
 ## Local AI on Apple Silicon
 
 Use a warm whisper.cpp server for English ASR, plus Ollama for Thai translation.

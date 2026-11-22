@@ -76,3 +76,17 @@ Installed whisper.cpp via Homebrew (including dependency installation/upgrades r
 by Homebrew), downloaded base.en into ignored artifacts/models, and Gemma 3 4B into
 Ollama's local model store. uv environment and Gradle outputs are ignored. Test servers
 and disposable emulator are stopped at handoff; existing Ollama service remains running.
+
+## Follow-up: physical user report and Remote Play OCR
+
+After the original report, the user reported Thai overlay visible over the PS5 HDMI image
+on their BRAVIA. Record this as **USER-REPORTED PASS**, not an independently observed device
+test. The updated APK also returned authenticated health 200 and accepted captions from
+this Mac on the physical LAN. Other video modes/controller/standby checks remain pending.
+
+Remote Play OCR follow-up: 27 Python tests pass; Ruff and mypy pass. Native Vision bitmap
+self-test and actual ScreenCaptureKit test-window crop pass. Synthetic window OCR → real
+Gemma translation → physical TV acknowledgement passed. The signed/notarized Sony Remote
+Play package was installed per-user and opened. Screen Recording preflight returned allowed.
+No actual Remote Play game stream has been tested yet: user sign-in/connect is required.
+The microphone session was stopped; OCR is not auto-started on the sign-in screen.
