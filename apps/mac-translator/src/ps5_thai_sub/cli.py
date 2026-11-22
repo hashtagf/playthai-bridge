@@ -8,7 +8,7 @@ import httpx
 from .audio import Microphone
 from .models import PRESETS, resolve_model
 from .ocr import WindowOCR, region, run_ocr
-from .pipeline import Latencies, Stabilizer
+from .pipeline import Latencies, Stabilizer, dialogue_only
 from .protocol import Caption
 from .providers import SAMPLES, APITranslator, MockTranslator, WhisperServer
 from .publisher import Publisher
@@ -38,7 +38,9 @@ def send_main():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Mac microphone or Remote Play → Thai subtitle overlay")
+    parser = argparse.ArgumentParser(
+        description="Mac microphone or Remote Play → Thai subtitle overlay"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("devices", help="List microphone devices; no recording")
     sub.add_parser("models", help="Show model presets and effective default")
@@ -219,7 +221,7 @@ def main():
                     if time.monotonic() - utterance.ended_at > 10:
                         continue  # Drop stale work, never replay a dialogue backlog.
                     try:
-                        text = asr.transcribe(utterance.audio)
+                        text = dialogue_only(asr.transcribe(utterance.audio))
                         if not stable.accept(text):
                             continue
                         thai = translator.translate(text)

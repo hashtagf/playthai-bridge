@@ -43,7 +43,7 @@ permission for the launching app/terminal. No microphone permission is required.
 - Default RMS gate 0.006 (`--vad-threshold` can override), 500ms silence, at least 200ms
   voiced energy, 100ms pre-roll and a 4-second max chunk for continuous game sound.
   The microphone path retains its old 0.015 gate / 8-second cap.
-- This is energy VAD, not dialogue isolation. Music/effects can trigger false speech and
+- An aggressive WebRTC speech detector now gates the energy VAD before ASR. This is not dialogue isolation. Music/effects can still trigger false speech and
   Whisper can hallucinate. Lower threshold may hear quiet speech but also more game noise.
 
 ## Diagnostics and limitations
@@ -77,3 +77,14 @@ References: [Apple ScreenCaptureKit](https://developer.apple.com/documentation/s
 Implementation signatures verified against the installed macOS SDK headers.
 
 Live app-audio run: two real captured-audio utterances completed Whisper → OpenThai → authenticated TV acknowledgement; end-of-utterance-to-ack 0.56–0.60 seconds. This excludes utterance collection time and panel rendering, and does not establish transcription/translation accuracy. No dialogue content was included in the client log.
+
+## Speech filtering (0.3.1)
+
+Remote Play audio now requires both energy and WebRTC VAD mode 3 speech detection before
+counting a frame as voiced. Explicit bracketed/parenthesized sound cues and music-note
+lyrics are stripped before translation; unmarked sound labels are skipped. Mixed dialogue
+retains spoken text outside cues. Parenthesized spoken asides can also be removed by this
+conservative rule. OCR remains a separate selectable input, not simultaneously merged.
+This does not separate speakers or guarantee rejection of singing/music and effects.
+Strict detection may miss quiet or very short dialogue. Real-game acceptance is still needed.
+Reference: https://github.com/daanzu/py-webrtcvad-wheels

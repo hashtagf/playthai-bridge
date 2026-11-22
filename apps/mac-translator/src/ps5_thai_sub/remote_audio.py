@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import webrtcvad
 
 from .audio import Segmenter, Utterance
 
@@ -74,12 +75,25 @@ class PCMFramer:
             yield np.clip(frame, -1, 1)
 
 
+class SpeechDetector:
+    """Strict WebRTC speech gate; not source separation or a singing detector."""
+
+    def __init__(self):
+        self.vad = webrtcvad.Vad(3)
+
+    def __call__(self, frame):
+        pcm = (np.clip(frame, -1, 1) * 32767).astype("<i2").tobytes()
+        return self.vad.is_speech(pcm, 16000)
+
+
 class RemotePlayAudio:
-    def __init__(self, app=DEFAULT_APP, threshold=0.006, binary=None):
+    def __init__(self, app=DEFAULT_APP, threshold=0.006, binary=None, speech_detector=None):
         self.binary = Path(binary) if binary else build_helper()
         self.app = app
         self.pending: queue.Queue[Utterance] = queue.Queue(maxsize=1)
-        self.segmenter = Segmenter(threshold)
+        self.segmenter = Segmenter(
+            threshold, speech_detector if speech_detector is not None else SpeechDetector()
+        )
         self.segmenter.max_frames = 200  # 4s cap for continuous game music.
         self.framer = PCMFramer()
         self.ready = threading.Event()
@@ -161,7 +175,9 @@ class RemotePlayAudio:
         except BaseException:
             self.close()
             raise
-        LOG.info("Remote Play audio active; microphone disabled; no recordings saved")
+        LOG.info(
+            "Remote Play audio active; strict speech filter enabled; microphone disabled; no recordings saved"
+        )
         return self
 
     def next(self):

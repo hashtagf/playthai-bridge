@@ -29,7 +29,7 @@ def test_partial_frame_is_retained_and_nan_rejected():
 
 
 def test_silence_and_bounded_latest_utterance():
-    source = RemotePlayAudio(binary="/unused")
+    source = RemotePlayAudio(binary="/unused", speech_detector=lambda frame: True)
     silence = np.zeros(320, dtype="<f4").tobytes()
     for _ in range(30):
         source.ingest(silence)
@@ -48,7 +48,7 @@ def test_silence_and_bounded_latest_utterance():
 
 
 def test_audio_continuous_music_chunks_bounded_to_four_seconds():
-    source = RemotePlayAudio(binary="/unused")
+    source = RemotePlayAudio(binary="/unused", speech_detector=lambda frame: True)
     speech = (np.sin(np.arange(320) * 0.1) * 0.1).astype("<f4").tobytes()
     for _ in range(200):
         source.ingest(speech)
@@ -67,7 +67,7 @@ def test_native_error_report_is_actionable_and_process_cleaned(monkeypatch):
             return 3
 
     monkeypatch.setattr("ps5_thai_sub.remote_audio.subprocess.Popen", FailedProcess)
-    source = RemotePlayAudio(binary="/unused")
+    source = RemotePlayAudio(binary="/unused", speech_detector=lambda frame: True)
     with pytest.raises(RuntimeError):
         with source:
             pass
@@ -76,7 +76,7 @@ def test_native_error_report_is_actionable_and_process_cleaned(monkeypatch):
 
 
 def test_native_protocol_ready_and_stream_error():
-    source = RemotePlayAudio(binary="/unused")
+    source = RemotePlayAudio(binary="/unused", speech_detector=lambda frame: True)
 
     class Process:
         stderr = io.BytesIO(b'{"type":"ready"}\n{"type":"error","message":"source closed"}\n')
@@ -89,7 +89,7 @@ def test_native_protocol_ready_and_stream_error():
 
 
 def test_audio_end_does_not_silently_wait_forever():
-    source = RemotePlayAudio(binary="/unused")
+    source = RemotePlayAudio(binary="/unused", speech_detector=lambda frame: True)
 
     class Process:
         stdout = io.BytesIO()
@@ -98,3 +98,36 @@ def test_audio_end_does_not_silently_wait_forever():
     source._audio()
     with pytest.raises(RuntimeError, match="ended"):
         source.next()
+
+
+def test_speech_gate_rejects_loud_non_speech():
+    source = RemotePlayAudio(binary="/unused", speech_detector=lambda frame: False)
+    noise = np.random.default_rng(1).uniform(-0.5, 0.5, 320).astype("<f4").tobytes()
+    for _ in range(250):
+        source.ingest(noise)
+    assert source.voiced_frames == 250
+    assert source.pending.empty()
+
+
+def test_real_speech_detector_rejects_silence():
+    from ps5_thai_sub.remote_audio import SpeechDetector
+
+    detector = SpeechDetector()
+    assert not any(detector(np.zeros(320, dtype="float32")) for _ in range(50))
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("[Music]", ""),
+        ("(gunshots)", ""),
+        ("♪ Singing a song ♪", ""),
+        ("[explosion] Get down!", "Get down!"),
+        ("Stay close to me.", "Stay close to me."),
+        ("Music.", ""),
+    ],
+)
+def test_non_dialogue_cues(text, expected):
+    from ps5_thai_sub.pipeline import dialogue_only
+
+    assert dialogue_only(text) == expected

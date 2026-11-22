@@ -114,3 +114,5 @@ Remote Play 5s capture initially silent, then after user reconnect produced 256 
 chunk cap, errors and cleanup. See docs/REMOTE_PLAY_AUDIO.md for scope and limitations.
 
 Live app-audio run: two real captured-audio utterances completed Whisper → OpenThai → authenticated TV acknowledgement; end-of-utterance-to-ack 0.56–0.60 seconds. This excludes utterance collection time and panel rendering, and does not establish transcription/translation accuracy. No dialogue content was included in the client log.
+
+Speech filtering 0.3.1: strict WebRTC speech gate for Remote Play audio plus sound/lyric cue removal before translation. 48 Python tests pass; mypy passes. Includes loud non-speech rejection with a controlled detector, actual detector silence rejection, and cue preservation/removal tests. Real-game music/speech discrimination is not yet validated.

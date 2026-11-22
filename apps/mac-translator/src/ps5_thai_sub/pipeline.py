@@ -34,3 +34,17 @@ class Latencies:
             return "No microphone latency samples"
         p50, p95 = np.percentile(self.values, [50, 95])
         return f"End-of-utterance → publish acknowledgement: n={len(self.values)} p50={p50:.2f}s p95={p95:.2f}s (not panel-render latency)"
+
+
+def dialogue_only(text: str) -> str:
+    """Drop explicit sound/lyric cues while retaining spoken words around cues."""
+    if "♪" in text or "♫" in text:
+        return ""
+    text = re.sub(r"\[[^\]]*\]|\([^)]*\)|<[^>]*>", "", text)
+    if re.fullmatch(
+        r"\s*(?:music|silence|applause|laughter|laughing|sighs?|gunshots?|explosion|background noise)[.! ]*",
+        text,
+        re.I,
+    ):
+        return ""
+    return text.strip()

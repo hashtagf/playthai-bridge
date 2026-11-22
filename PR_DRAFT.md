@@ -62,3 +62,5 @@ without microphone/loopback driver. App inclusion filtering, checked 16kHz mono 
 bounded VAD buffering, privacy-safe signal telemetry and helper lifecycle cleanup.
 Actual Remote Play nonzero audio verified; 40 Python tests. Model presets apply to all
 three input modes. Audio/translation quality remains a separate acceptance check.
+
+Speech filtering 0.3.1: strict WebRTC speech gate for Remote Play audio plus sound/lyric cue removal before translation. 48 Python tests pass; mypy passes. Includes loud non-speech rejection with a controlled detector, actual detector silence rejection, and cue preservation/removal tests. Real-game music/speech discrimination is not yet validated.

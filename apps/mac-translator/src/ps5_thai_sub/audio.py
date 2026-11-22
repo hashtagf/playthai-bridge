@@ -15,7 +15,8 @@ class Utterance:
 
 
 class Segmenter:
-    def __init__(self, threshold=0.015):
+    def __init__(self, threshold=0.015, speech_detector=None):
+        self.speech_detector = speech_detector
         self.threshold = threshold
         self.max_frames = 400
         self.pre: deque[np.ndarray] = deque(maxlen=5)
@@ -28,6 +29,9 @@ class Segmenter:
         # 20ms mono float32 blocks. Remove DC before RMS, not a learned denoiser.
         signal = frame - frame.mean()
         active = float(np.sqrt(np.mean(signal * signal))) >= self.threshold
+        if self.speech_detector is not None:
+            speech = self.speech_detector(frame)
+            active = active and speech
         if not self.frames and not active:
             self.pre.append(frame.copy())
             return None
