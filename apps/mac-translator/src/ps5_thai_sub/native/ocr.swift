@@ -30,6 +30,8 @@ func recognize(_ image: CGImage) throws -> String {
         }
     }
     @MainActor static func run() async throws {
+        // Initialize the WindowServer connection before ScreenCaptureKit on CLI launches.
+        _ = NSApplication.shared
         let args = Array(CommandLine.arguments.dropFirst())
         if args == ["--permission"] {
             let granted = CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess()

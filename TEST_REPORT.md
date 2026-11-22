@@ -90,3 +90,10 @@ Gemma translation → physical TV acknowledgement passed. The signed/notarized S
 Play package was installed per-user and opened. Screen Recording preflight returned allowed.
 No actual Remote Play game stream has been tested yet: user sign-in/connect is required.
 The microphone session was stopped; OCR is not auto-started on the sign-in screen.
+
+Remote Play connection follow-up: actual window capture reached the PS5 video. A native
+WindowServer initialization assertion was found and fixed by initializing NSApplication
+before ScreenCaptureKit. Three actual Remote Play capture/OCR calls then succeeded.
+The PS5 controller-user chooser covered the game, so continuous translation remains
+paused until the user dismisses it. No actual game subtitle translation is claimed yet.
+The one diagnostic calibration screenshot was deleted after inspection.
