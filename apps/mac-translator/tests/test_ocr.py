@@ -1,4 +1,5 @@
 import pytest
+
 from ps5_thai_sub.ocr import OCRGate, key, region, run_ocr
 
 

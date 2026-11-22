@@ -63,6 +63,16 @@ port forward is needed. The listener rejects public-source addresses and require
 on health as well as captions. HTTP is not encrypted: use only a trusted isolated LAN.
 Mac browser viewer binds loopback only. See [protocol and security limits](packages/protocol/README.md).
 
+## Remote Play audio (new)
+
+Capture audio directly from PS Remote Play instead of the room microphone:
+```sh
+uv run --project apps/mac-translator ps5-thai-sub run --input remote-play-audio --target "$TV_IP" --model openthai
+```
+Keep app audio enabled, Whisper and Ollama running. No loopback driver is needed.
+[Setup, permissions and audio-level checks](docs/REMOTE_PLAY_AUDIO.md). This is a separate
+input mode from OCR; it still hears game music/effects mixed by Remote Play.
+
 ## Remote Play OCR (new)
 
 To read English subtitles directly from PS Remote Play instead of the microphone, use
@@ -81,7 +91,7 @@ uv run --project apps/mac-translator ps5-thai-sub run --input remote-play-ocr --
 # Switch to Gemma by stopping the running CLI and starting again:
 uv run --project apps/mac-translator ps5-thai-sub run --input remote-play-ocr --target "$TV_IP" --model gemma
 ```
-Both microphone and OCR modes support the same choice. Full provider model IDs still
+Microphone, Remote Play audio and OCR modes support the same choice. Full provider model IDs still
 work. Priority: explicit `--model` → `TRANSLATION_MODEL` environment → OpenThai default.
 An old exported `TRANSLATION_MODEL=gemma3:4b` overrides the default; unset it or use
 `--model openthai`. Startup logs identify the selected model. Switching is on restart,

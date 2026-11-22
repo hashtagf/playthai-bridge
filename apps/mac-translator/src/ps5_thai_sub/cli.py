@@ -12,6 +12,7 @@ from .pipeline import Latencies, Stabilizer
 from .protocol import Caption
 from .providers import SAMPLES, APITranslator, MockTranslator, WhisperServer
 from .publisher import Publisher
+from .remote_audio import DEFAULT_APP, RemotePlayAudio
 from .viewer import Preview
 
 LOG = logging.getLogger("ps5-thai-sub")
@@ -37,15 +38,27 @@ def send_main():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Mac microphone → Thai subtitle overlay")
+    parser = argparse.ArgumentParser(description="Mac microphone or Remote Play → Thai subtitle overlay")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("devices", help="List microphone devices; no recording")
     sub.add_parser("models", help="Show model presets and effective default")
+    sub.add_parser(
+        "capture-permission", help="Request macOS screen/system audio capture permission"
+    )
+    check = sub.add_parser(
+        "audio-check", help="Check app audio levels without ASR or saved recordings"
+    )
+    check.add_argument("--audio-app", default=DEFAULT_APP)
+    check.add_argument("--seconds", type=float, default=5)
     sub.add_parser("ocr-windows", help="List visible window IDs for OCR selection")
     sub.add_parser("ocr-permission", help="Request macOS Screen Recording permission")
     sub.add_parser("ocr-self-test", help="Recognize a synthetic English subtitle without capture")
     run = sub.add_parser("run")
-    run.add_argument("--input", choices=["microphone", "remote-play-ocr"], default="microphone")
+    run.add_argument(
+        "--input",
+        choices=["microphone", "remote-play-ocr", "remote-play-audio"],
+        default="microphone",
+    )
     run.add_argument("--demo", action="store_true")
     run.add_argument("--window-id", type=int, help="Explicit capture window ID from ocr-windows")
     run.add_argument(
@@ -62,7 +75,14 @@ def main():
     run.add_argument("--transcriber", choices=["whisper-server"], default="whisper-server")
     run.add_argument("--translator", choices=["openai-compatible"], default="openai-compatible")
     run.add_argument("--device", type=int)
-    run.add_argument("--vad-threshold", type=float, default=0.015)
+    run.add_argument(
+        "--audio-app",
+        default=DEFAULT_APP,
+        help="Bundle ID to include for app audio; defaults to PS Remote Play",
+    )
+    run.add_argument(
+        "--vad-threshold", type=float, help="RMS gate: default 0.015 mic, 0.006 app audio"
+    )
     run.add_argument("--demo-once", action="store_true", help="Exit after three fixture captions")
     run.add_argument(
         "--whisper-url", default=os.getenv("WHISPER_SERVER_URL", "http://127.0.0.1:18080")
@@ -85,12 +105,27 @@ def main():
                 print(f"{alias}: {model}")
             print(f"Effective default: {resolve_model()}")
             return
-        if args.command.startswith("ocr-"):
+        if args.command == "audio-check":
+            if not 1 <= args.seconds <= 60:
+                raise ValueError("Audio check duration must be 1..60 seconds")
+            with RemotePlayAudio(args.audio_app) as audio:
+                deadline = time.monotonic() + args.seconds
+                while time.monotonic() < deadline:
+                    audio.next()
+                print(
+                    f"Audio check: frames={audio.frames}, above_threshold={audio.voiced_frames}, peak={audio.peak:.4f}"
+                )
+                if not audio.voiced_frames:
+                    print(
+                        "No audible Remote Play signal detected; check app volume, mute and connection"
+                    )
+            return
+        if args.command.startswith("ocr-") or args.command == "capture-permission":
             source = WindowOCR()
             if args.command == "ocr-windows":
                 for window in source.windows():
                     print(f"{window['id']} | {window['app']} | {window['title']}")
-            elif args.command == "ocr-permission":
+            elif args.command in ("ocr-permission", "capture-permission"):
                 granted = source.command("--permission")["granted"]
                 print(
                     "Screen Recording allowed"
@@ -110,6 +145,8 @@ def main():
             LOG.info("Translation model: %s", args.model)
         if args.demo_once and not args.demo:
             raise ValueError("--demo-once requires --demo")
+        if args.vad_threshold is None:
+            args.vad_threshold = 0.006 if args.input == "remote-play-audio" else 0.015
         if not 0 < args.vad_threshold < 1:
             raise ValueError("VAD threshold must be between zero and one")
         crop = region(args.ocr_region)
@@ -167,8 +204,14 @@ def main():
             asr.check()
             translator.check()
             stable = Stabilizer()
-            with Microphone(args.device, args.vad_threshold) as mic:
-                LOG.info("Microphone active; no recordings saved. Ctrl-C stops capture.")
+            audio_source = (
+                RemotePlayAudio(args.audio_app, args.vad_threshold)
+                if args.input == "remote-play-audio"
+                else Microphone(args.device, args.vad_threshold)
+            )
+            with audio_source as mic:
+                if args.input == "microphone":
+                    LOG.info("Microphone active; no recordings saved. Ctrl-C stops capture.")
                 while True:
                     utterance = mic.next()
                     if utterance is None:

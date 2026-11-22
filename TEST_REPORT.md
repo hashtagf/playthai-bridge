@@ -104,3 +104,13 @@ Version 0.2.1 sets OpenThai as default and adds `openthai` / `gemma` presets plu
 `models` command. CLI overrides environment; environment overrides the default. Both
 input modes share resolution. 33 Python tests, Ruff and mypy pass. This preference
 change does not revise the comparative translation-quality findings.
+
+## Remote Play direct audio (v0.3.0)
+
+Added application-filtered ScreenCaptureKit PCM capture. Native helper compiled; actual
+Remote Play 5s capture initially silent, then after user reconnect produced 256 frames,
+57 over the energy gate and peak 0.0720. Whisper, OpenThai and TV readiness passed.
+40 Python tests, Ruff/mypy and wheel build validate framing, backpressure, silence,
+chunk cap, errors and cleanup. See docs/REMOTE_PLAY_AUDIO.md for scope and limitations.
+
+Live app-audio run: two real captured-audio utterances completed Whisper → OpenThai → authenticated TV acknowledgement; end-of-utterance-to-ack 0.56–0.60 seconds. This excludes utterance collection time and panel rendering, and does not establish transcription/translation accuracy. No dialogue content was included in the client log.

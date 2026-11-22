@@ -1,4 +1,5 @@
 import pytest
+
 from ps5_thai_sub.models import DEFAULT_MODEL, resolve_model
 
 

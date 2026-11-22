@@ -56,3 +56,9 @@ controller coexistence still require user connection and hardware verification.
 Follow-up model choice: user-requested OpenThai default with `--model openthai`,
 `--model gemma` and full model IDs; `models` reports presets/effective default.
 CLI/environment priority tested; 33 Python tests pass. Switching takes effect on restart.
+
+Follow-up v0.3.0: optional Remote Play application-audio input via ScreenCaptureKit,
+without microphone/loopback driver. App inclusion filtering, checked 16kHz mono PCM,
+bounded VAD buffering, privacy-safe signal telemetry and helper lifecycle cleanup.
+Actual Remote Play nonzero audio verified; 40 Python tests. Model presets apply to all
+three input modes. Audio/translation quality remains a separate acceptance check.
