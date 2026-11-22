@@ -7,7 +7,7 @@ import httpx
 
 from .audio import Microphone
 from .models import PRESETS, resolve_model
-from .ocr import WindowOCR, region, run_ocr
+from .ocr import WindowOCR, region, run_multi_ocr, run_ocr
 from .pipeline import Latencies, Stabilizer, dialogue_only
 from .protocol import Caption
 from .providers import SAMPLES, APITranslator, MockTranslator, WhisperServer
@@ -67,6 +67,14 @@ def main():
         "--ocr-region",
         default="0.10,0.65,0.80,0.28",
         help="x,y,width,height normalized from window top-left",
+    )
+    run.add_argument(
+        "--ocr-chat", action="store_true", help="Also read bottom-right chat in OCR mode"
+    )
+    run.add_argument(
+        "--ocr-chat-region",
+        default="0.65,0.50,0.35,0.45",
+        help="Chat crop: x,y,width,height fractions",
     )
     run.add_argument("--ocr-interval", type=float, default=0.3)
     run.add_argument("--ocr-stable-seconds", type=float, default=0.6)
@@ -152,6 +160,9 @@ def main():
         if not 0 < args.vad_threshold < 1:
             raise ValueError("VAD threshold must be between zero and one")
         crop = region(args.ocr_region)
+        chat_crop = region(args.ocr_chat_region)
+        if args.ocr_chat and args.input != "remote-play-ocr":
+            raise ValueError("--ocr-chat requires --input remote-play-ocr")
         if not 0.1 <= args.ocr_interval <= 5 or not 0.2 <= args.ocr_stable_seconds <= 5:
             raise ValueError("OCR interval must be 0.1..5s and stability 0.2..5s")
         publisher = Publisher(args.target, args.token, args.port) if args.target else None
@@ -189,10 +200,11 @@ def main():
             translator.check()
             # Read once before starting to fail clearly on permission/capture errors.
             source.read(window_id, crop)
-            run_ocr(
+            ocr_runner = run_multi_ocr if args.ocr_chat else run_ocr
+            ocr_runner(
                 source,
                 window_id,
-                crop,
+                [crop, chat_crop] if args.ocr_chat else crop,
                 translator,
                 publish,
                 args.ocr_interval,

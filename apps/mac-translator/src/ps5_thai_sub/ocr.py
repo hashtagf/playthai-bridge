@@ -7,6 +7,7 @@ import platform
 import re
 import subprocess
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
@@ -172,4 +173,53 @@ def run_ocr(source, window_id, crop, translator, publish, interval=0.3, stable_s
                 except (httpx.HTTPError, ValueError, KeyError, IndexError):
                     retry_after = time.monotonic() + 2
                     LOG.warning("OCR translation failed; retry delayed (content redacted)")
+        time.sleep(max(0.01, interval - (time.monotonic() - started)))
+
+
+@dataclass
+class RegionState:
+    gate: OCRGate
+    original: str = ""
+    thai: str = ""
+    retry: float = 0.0
+
+
+def run_multi_ocr(source, window_id, crops, translator, publish, interval=0.3, stable_seconds=0.6):
+    """Independently stabilize regions; publish a single combined overlay."""
+    states = [RegionState(OCRGate(stable_seconds)) for _ in crops]
+    last_sent = ""
+    last_publish = 0.0
+    LOG.info("Window OCR active: %d regions; no audio capture or saved images", len(crops))
+    while True:
+        started = time.monotonic()
+        for index, (crop, state) in enumerate(zip(crops, states)):
+            now = time.monotonic()
+            ready = state.gate.observe(source.read(window_id, crop), now)
+            if ready is None:
+                continue
+            normalized = key(ready)
+            if not ready:
+                state.original = state.thai = ""
+            elif normalized != state.original and now >= state.retry:
+                try:
+                    translated = translator.translate(ready)
+                    current = source.read(window_id, crop)
+                    if key(current) != normalized:
+                        state.gate.observe(current, time.monotonic())
+                        state.original = state.thai = ""
+                    else:
+                        state.original, state.thai = normalized, translated
+                        LOG.info("OCR region %d translated (content redacted)", index + 1)
+                except (httpx.HTTPError, ValueError, KeyError, IndexError):
+                    state.retry = time.monotonic() + 2
+                    LOG.warning("OCR region %d translation failed; retry delayed", index + 1)
+        # Deduplicate overlapping crops and respect the TV's UTF-16 length bound.
+        parts = list(dict.fromkeys(state.thai for state in states if state.thai))
+        combined = "\n".join(parts)
+        combined = combined.encode("utf-16-le")[:1000].decode("utf-16-le", errors="ignore")
+        now = time.monotonic()
+        if combined != last_sent or (combined and now - last_publish >= 3):
+            if publish(combined):
+                last_sent, last_publish = combined, now
+                LOG.info("Multi-region OCR caption acknowledged")
         time.sleep(max(0.01, interval - (time.monotonic() - started)))

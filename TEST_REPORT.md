@@ -118,3 +118,5 @@ Live app-audio run: two real captured-audio utterances completed Whisper → Ope
 Speech filtering 0.3.1: strict WebRTC speech gate for Remote Play audio plus sound/lyric cue removal before translation. 48 Python tests pass; mypy passes. Includes loud non-speech rejection with a controlled detector, actual detector silence rejection, and cue preservation/removal tests. Real-game music/speech discrimination is not yet validated.
 
 0.3.2 latency tuning: app audio collection cap 4s → 2s; silence finalization 500ms → 300ms; stage timings added without dialogue logs. Strict speech filtering and OpenThai preserved. 49 tests and mypy pass. Shorter chunks trade sentence context for earlier results; total live latency still needs observation.
+
+0.3.3: optional --ocr-chat adds independently stabilized bottom-right OCR alongside the subtitle crop. Combined bounded overlay; no simultaneous audio. 50 tests and mypy pass. Live capture returned subtitle characters but no chat; real chat-region alignment remains unverified.

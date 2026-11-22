@@ -1,6 +1,6 @@
 [project]
 name = "ps5-thai-sub"
-version = "0.3.2"
+version = "0.3.3"
 description = "Microphone English to Thai subtitles for a LAN Android TV overlay"
 requires-python = ">=3.12"
 dependencies = [

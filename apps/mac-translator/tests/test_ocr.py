@@ -89,3 +89,39 @@ def test_same_line_can_reappear_after_blank(monkeypatch):
     sent, calls = execute(monkeypatch, ["Hello"] * 3 + [""] * 2 + ["Hello"] * 3)
     assert calls == ["Hello", "Hello"]
     assert sent == ["ประตูถูกล็อกอยู่", "", "ประตูถูกล็อกอยู่"]
+
+
+def test_multi_region_independent_updates_and_dedup(monkeypatch):
+    from ps5_thai_sub.ocr import run_multi_ocr
+
+    clock = Clock()
+    monkeypatch.setattr("ps5_thai_sub.ocr.time.monotonic", clock.monotonic)
+    monkeypatch.setattr("ps5_thai_sub.ocr.time.sleep", clock.sleep)
+
+    class Regions:
+        def read(self, window, crop):
+            if clock.now >= 3:
+                raise KeyboardInterrupt
+            if crop == "subtitle":
+                return "Hello" if clock.now < 2 else ""
+            return "Follow me"
+
+    class Translate:
+        def __init__(self):
+            self.calls = []
+
+        def translate(self, text):
+            self.calls.append(text)
+            return {"Hello": "สวัสดี", "Follow me": "ตามฉันมา"}[text]
+
+    translator = Translate()
+    sent = []
+
+    def publish(text):
+        sent.append(text)
+        return True
+
+    with pytest.raises(KeyboardInterrupt):
+        run_multi_ocr(Regions(), 1, ["subtitle", "chat"], translator, publish, 0.5, 0.5)
+    assert translator.calls == ["Hello", "Follow me"]
+    assert sent == ["สวัสดี\nตามฉันมา", "ตามฉันมา"]

@@ -80,3 +80,23 @@ control arrangement explicitly with the user. HDMI/HDR/VRR coexistence also need
 
 References: [Apple ScreenCaptureKit](https://developer.apple.com/documentation/screencapturekit/scscreenshotmanager),
 [Apple Vision](https://developer.apple.com/documentation/vision/vnrecognizetextrequest).
+
+## Subtitle and bottom-right chat regions (0.3.3)
+
+Enable both regions with:
+
+```sh
+uv run --project apps/mac-translator ps5-thai-sub run --input remote-play-ocr --ocr-chat --window-id WINDOW_ID --target "$TV_IP" --model openthai
+```
+
+`--ocr-region` defaults to `0.10,0.65,0.80,0.28` (lower center).
+`--ocr-chat-region` defaults to `0.65,0.50,0.35,0.45` (lower right).
+Coordinates are fractions of the Remote Play window measured from its top-left.
+Use `ocr-windows` to find the current window ID. Each region stabilizes independently;
+unchanged regions do not trigger translation, and their Thai output is combined in one
+TV caption, bounded to 500 UTF-16 units. Long chat output may be truncated. Exact duplicate
+translations are collapsed; partially overlapping crops may still repeat some text.
+Chat is translated as the visible region, not an incremental message feed. Adjust crops to
+avoid HUD or overlapping text. This mode replaces audio input; it does not run alongside it.
+Actual development check captured 10 subtitle characters and 0 chat characters; the chat
+position and readability must be verified while messages are visible in the game.
