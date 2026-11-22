@@ -195,3 +195,7 @@ physical-device claims. Review [test evidence](TEST_REPORT.md), [limitations](KN
 Stop capture with Ctrl-C and Stop Service on TV when finished. Remove the debug APK and
 revoke debugging/overlay permissions using the M0 cleanup steps. Do not change PS5 or
 Sony HDR/VRR settings as a workaround without separately recording the impact.
+
+## Hybrid subtitles + speech + chat
+
+Use `--input remote-play-hybrid --ocr-chat --ocr-phone` to capture both inputs with a single native stream. OCR takes priority; speech fills gaps. See [Hybrid setup and limitations](docs/HYBRID.md). Existing single-input modes remain available.

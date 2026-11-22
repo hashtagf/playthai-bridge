@@ -129,3 +129,9 @@ text-heavy center panels can trigger it. It does not scroll or operate the phone
 51 tests pass including return to subtitles after phone text disappears. Live session uses
 subtitle 0.15,0.70,0.60,0.25; chat 0.79,0.77,0.20,0.21; phone 0.35,0.20,0.27,0.65,
 based on inspection of the actual Remote Play window. Audio capture is stopped for OCR.
+
+0.4.0 hybrid: single native window/audio stream, OCR priority with speech fallback,
+independent chat/phone regions, bounded two-job processing and one publisher. 58 Python
+tests pass plus native compilation. Live hybrid received video OCR and audio frames
+concurrently and sent subtitle/chat translations to TV. Live speech fallback, accuracy
+and long-run stability remain unverified. See docs/HYBRID.md for plan and limitations.

@@ -46,6 +46,10 @@ def build_helper() -> Path:
                     "AVFoundation",
                     "-framework",
                     "CoreMedia",
+                    "-framework",
+                    "CoreImage",
+                    "-framework",
+                    "Vision",
                 ],
                 capture_output=True,
                 timeout=120,
@@ -87,9 +91,20 @@ class SpeechDetector:
 
 
 class RemotePlayAudio:
-    def __init__(self, app=DEFAULT_APP, threshold=0.006, binary=None, speech_detector=None):
+    def __init__(
+        self,
+        app=DEFAULT_APP,
+        threshold=0.006,
+        binary=None,
+        speech_detector=None,
+        window_id=None,
+        crops=None,
+    ):
         self.binary = Path(binary) if binary else build_helper()
         self.app = app
+        self.window_id = window_id
+        self.crops = crops
+        self.ocr_snapshot: tuple[float, list[str]] = (0.0, [])
         self.pending: queue.Queue[Utterance] = queue.Queue(maxsize=1)
         self.segmenter = Segmenter(
             threshold, speech_detector if speech_detector is not None else SpeechDetector()
@@ -153,6 +168,16 @@ class RemotePlayAudio:
                 message = json.loads(raw)
             except (ValueError, UnicodeError):
                 continue  # Ignore native framework diagnostics; never echo arbitrary stderr.
+            if message.get("type") == "ocr":
+                texts = message.get("texts")
+                if (
+                    isinstance(texts, list)
+                    and self.crops
+                    and len(texts) == len(self.crops)
+                    and all(isinstance(t, str) and len(t) <= 2000 for t in texts)
+                ):
+                    self.ocr_snapshot = (time.monotonic(), texts)
+                continue
             if message.get("type") == "ready":
                 self.ready.set()
             elif message.get("type") == "error":
@@ -160,8 +185,11 @@ class RemotePlayAudio:
                 self.ready.set()
 
     def __enter__(self):
+        command = [str(self.binary), self.app]
+        if self.window_id is not None:
+            command += [str(self.window_id), json.dumps(self.crops)]
         self.process = subprocess.Popen(
-            [str(self.binary), self.app], stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0
         )
         self.threads = [
             threading.Thread(target=fn, daemon=True) for fn in (self._audio, self._events)

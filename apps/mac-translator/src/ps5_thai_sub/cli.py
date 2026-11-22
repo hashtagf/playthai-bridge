@@ -6,6 +6,7 @@ import time
 import httpx
 
 from .audio import Microphone
+from .hybrid import run_hybrid
 from .models import PRESETS, resolve_model
 from .ocr import WindowOCR, region, run_multi_ocr, run_ocr
 from .pipeline import Latencies, Stabilizer, dialogue_only
@@ -58,7 +59,7 @@ def main():
     run = sub.add_parser("run")
     run.add_argument(
         "--input",
-        choices=["microphone", "remote-play-ocr", "remote-play-audio"],
+        choices=["microphone", "remote-play-ocr", "remote-play-audio", "remote-play-hybrid"],
         default="microphone",
     )
     run.add_argument("--demo", action="store_true")
@@ -160,14 +161,19 @@ def main():
         if args.demo_once and not args.demo:
             raise ValueError("--demo-once requires --demo")
         if args.vad_threshold is None:
-            args.vad_threshold = 0.006 if args.input == "remote-play-audio" else 0.015
+            args.vad_threshold = (
+                0.006 if args.input in ("remote-play-audio", "remote-play-hybrid") else 0.015
+            )
         if not 0 < args.vad_threshold < 1:
             raise ValueError("VAD threshold must be between zero and one")
         crop = region(args.ocr_region)
         chat_crop = region(args.ocr_chat_region)
         phone_crop = region(args.ocr_phone_region)
-        if (args.ocr_chat or args.ocr_phone) and args.input != "remote-play-ocr":
-            raise ValueError("OCR chat/phone requires --input remote-play-ocr")
+        if (args.ocr_chat or args.ocr_phone) and args.input not in (
+            "remote-play-ocr",
+            "remote-play-hybrid",
+        ):
+            raise ValueError("OCR chat/phone requires OCR or hybrid input")
         if not 0.1 <= args.ocr_interval <= 5 or not 0.2 <= args.ocr_stable_seconds <= 5:
             raise ValueError("OCR interval must be 0.1..5s and stability 0.2..5s")
         publisher = Publisher(args.target, args.token, args.port) if args.target else None
@@ -196,6 +202,32 @@ def main():
                     time.sleep(3)
                 if args.demo_once:
                     break
+        elif args.input == "remote-play-hybrid":
+            source = WindowOCR()
+            window_id = source.select(args.window_id)
+            names, crops = ["subtitle"], [crop]
+            if args.ocr_chat:
+                names.append("chat")
+                crops.append(chat_crop)
+            if args.ocr_phone:
+                names.append("phone")
+                crops.append(phone_crop)
+            asr = WhisperServer(args.whisper_url)
+            asr.check()
+            translators = {}
+            try:
+                for name in names + ["audio"]:
+                    translators[name] = APITranslator(
+                        args.translation_url, args.model, os.getenv("TRANSLATION_API_KEY", "")
+                    )
+                translators["audio"].check()
+                with RemotePlayAudio(
+                    args.audio_app, args.vad_threshold, window_id=window_id, crops=crops
+                ) as capture:
+                    run_hybrid(capture, names, translators, asr, publish, args.ocr_stable_seconds)
+            finally:
+                for client in translators.values():
+                    client.close()
         elif args.input == "remote-play-ocr":
             source = WindowOCR()
             window_id = source.select(args.window_id)
