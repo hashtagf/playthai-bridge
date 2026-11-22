@@ -21,6 +21,8 @@ class OverlayService : Service() {
     private var caption: TextView? = null
     private val expire = Runnable { hide() }
     private var server: CaptionServer? = null
+    private val pending = java.util.concurrent.atomic.AtomicReference<Caption?>(null)
+    private val drain = Runnable { pending.getAndSet(null)?.let { show(it.text, it.duration) } }
     override fun onCreate() {
         super.onCreate()
         val manager = getSystemService(NotificationManager::class.java)
@@ -29,6 +31,15 @@ class OverlayService : Service() {
         startForeground(1, Notification.Builder(this, "subtitles").setContentTitle("Thai subtitle overlay active").setContentText("Open app to stop").setSmallIcon(android.R.drawable.ic_menu_info_details).setContentIntent(open).build())
         wm = getSystemService(WindowManager::class.java)
         running = true; status = "Running • local test ready"
+        try {
+            server = CaptionServer(getSharedPreferences("settings", MODE_PRIVATE).getString("token", "") ?: "",
+                CaptionState { SystemClock.elapsedRealtime() }, { item ->
+                    pending.set(item)
+                    handler.removeCallbacks(drain)
+                    handler.post(drain)
+                })
+            status = "Running • LAN port 8765"
+        } catch (_: Exception) { status = "Local overlay ready; LAN port unavailable (restart service)" }
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (!Settings.canDrawOverlays(this)) { status = "Overlay permission missing"; stopSelf(); return START_NOT_STICKY }
