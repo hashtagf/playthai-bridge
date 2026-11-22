@@ -3,7 +3,9 @@
 Tested `gemma3:4b` and `openthai/openthai-1.5-7b` (7.6B Q4_K_M) on this M4 Max Mac.
 The OpenThai tag comes from the [official model card](https://huggingface.co/openthaigpt/openthaigpt1.5-7b-instruct).
 Model download is about 4.7 GB and remains in Ollama for repeat experiments; production
-model selection has NOT changed.
+model selection was not changed by this trial. In a later user-requested update,
+OpenThai became the default with a Gemma preset available; the quality findings below
+remain unchanged.
 
 ## Method
 

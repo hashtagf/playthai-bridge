@@ -52,3 +52,7 @@ rejection. No microphone or Whisper dependency in OCR mode. Native helper builds
 run and is included in the wheel as Swift source. 27 Python tests, native OCR/capture
 fixture checks and synthetic OCR-to-TV smoke pass. Actual Remote Play game-session and
 controller coexistence still require user connection and hardware verification.
+
+Follow-up model choice: user-requested OpenThai default with `--model openthai`,
+`--model gemma` and full model IDs; `models` reports presets/effective default.
+CLI/environment priority tested; 33 Python tests pass. Switching takes effect on restart.

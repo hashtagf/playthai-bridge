@@ -71,6 +71,25 @@ This optional mode uses Apple ScreenCaptureKit + Vision, then the same Thai tran
 and TV bridge. It needs Screen Recording permission, not Whisper. It is implemented and
 synthetic-window tested; actual Remote Play game-session validation is pending.
 
+## Choose the translation model
+
+OpenThai is the user-selected default. No APK update is required. From repository root:
+```sh
+uv run --project apps/mac-translator ps5-thai-sub models
+# Use OpenThai (also selected when --model is omitted):
+uv run --project apps/mac-translator ps5-thai-sub run --input remote-play-ocr --target "$TV_IP" --model openthai
+# Switch to Gemma by stopping the running CLI and starting again:
+uv run --project apps/mac-translator ps5-thai-sub run --input remote-play-ocr --target "$TV_IP" --model gemma
+```
+Both microphone and OCR modes support the same choice. Full provider model IDs still
+work. Priority: explicit `--model` → `TRANSLATION_MODEL` environment → OpenThai default.
+An old exported `TRANSLATION_MODEL=gemma3:4b` overrides the default; unset it or use
+`--model openthai`. Startup logs identify the selected model. Switching is on restart,
+not a live browser control. Demo mode continues to use fixtures, not AI.
+
+This default is a preference, not a claim that OpenThai is more accurate. Both models
+made meaningful translation mistakes in the [comparison](docs/TRANSLATION_COMPARISON.md).
+
 ## Local AI on Apple Silicon
 
 Use a warm whisper.cpp server for English ASR, plus Ollama for Thai translation.
@@ -85,11 +104,11 @@ whisper-server -m artifacts/models/ggml-base.en.bin --host 127.0.0.1 --port 1808
 ```
 Keep that terminal open. In another terminal with Ollama installed/running:
 ```sh
-ollama pull gemma3:4b
+ollama pull openthai/openthai-1.5-7b
 # If Ollama is not already running: ollama serve
 cd apps/mac-translator
 uv run ps5-thai-sub devices
-uv run ps5-thai-sub run --input microphone --target "$TV_IP" --token "$PS5_TV_TOKEN" --transcriber whisper-server --translator openai-compatible --whisper-url http://127.0.0.1:18080 --model gemma3:4b
+uv run ps5-thai-sub run --input microphone --target "$TV_IP" --token "$PS5_TV_TOKEN" --transcriber whisper-server --translator openai-compatible --whisper-url http://127.0.0.1:18080 --model openthai
 ```
 Omit `--target` for Mac-only fallback. Choose `--device N` from the device list if needed.
 macOS may ask to allow microphone access for the terminal/app that launched Python;

@@ -6,6 +6,7 @@ import time
 import httpx
 
 from .audio import Microphone
+from .models import PRESETS, resolve_model
 from .ocr import WindowOCR, region, run_ocr
 from .pipeline import Latencies, Stabilizer
 from .protocol import Caption
@@ -39,6 +40,7 @@ def main():
     parser = argparse.ArgumentParser(description="Mac microphone → Thai subtitle overlay")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("devices", help="List microphone devices; no recording")
+    sub.add_parser("models", help="Show model presets and effective default")
     sub.add_parser("ocr-windows", help="List visible window IDs for OCR selection")
     sub.add_parser("ocr-permission", help="Request macOS Screen Recording permission")
     sub.add_parser("ocr-self-test", help="Recognize a synthetic English subtitle without capture")
@@ -68,13 +70,21 @@ def main():
     run.add_argument(
         "--translation-url", default=os.getenv("TRANSLATION_BASE_URL", "http://127.0.0.1:11434/v1")
     )
-    run.add_argument("--model", default=os.getenv("TRANSLATION_MODEL", "gemma3:4b"))
+    run.add_argument(
+        "--model",
+        help="openthai (default), gemma, or a full provider model ID; overrides TRANSLATION_MODEL",
+    )
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
     preview = publisher = asr = translator = None
     latency = Latencies()
     try:
+        if args.command == "models":
+            for alias, model in PRESETS.items():
+                print(f"{alias}: {model}")
+            print(f"Effective default: {resolve_model()}")
+            return
         if args.command.startswith("ocr-"):
             source = WindowOCR()
             if args.command == "ocr-windows":
@@ -95,6 +105,9 @@ def main():
 
             print(sd.query_devices())
             return
+        args.model = resolve_model(args.model)
+        if not args.demo:
+            LOG.info("Translation model: %s", args.model)
         if args.demo_once and not args.demo:
             raise ValueError("--demo-once requires --demo")
         if not 0 < args.vad_threshold < 1:

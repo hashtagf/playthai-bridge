@@ -97,3 +97,10 @@ before ScreenCaptureKit. Three actual Remote Play capture/OCR calls then succeed
 The PS5 controller-user chooser covered the game, so continuous translation remains
 paused until the user dismisses it. No actual game subtitle translation is claimed yet.
 The one diagnostic calibration screenshot was deleted after inspection.
+
+## User-selected model default
+
+Version 0.2.1 sets OpenThai as default and adds `openthai` / `gemma` presets plus a
+`models` command. CLI overrides environment; environment overrides the default. Both
+input modes share resolution. 33 Python tests, Ruff and mypy pass. This preference
+change does not revise the comparative translation-quality findings.

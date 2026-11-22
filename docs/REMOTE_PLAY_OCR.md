@@ -10,7 +10,7 @@ path remains available. TV APK/protocol is unchanged; no reinstall is needed.
 2. On PS5 enable Settings → System → Remote Play → Enable Remote Play. Sign into Remote
    Play on Mac and connect the PS5. Account sign-in must be completed by the user.
 3. Enable **English subtitles in the game**. Keep the game video window open, not minimized.
-4. Keep TV overlay service running. Keep Ollama running with `gemma3:4b` downloaded.
+4. Keep TV overlay service running. Keep Ollama running with `openthai/openthai-1.5-7b` downloaded (default), or select `--model gemma`.
    Whisper and microphone permission are not needed for this mode.
 5. From repository root:
 
