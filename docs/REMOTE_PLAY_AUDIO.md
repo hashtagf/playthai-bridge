@@ -40,8 +40,8 @@ permission for the launching app/terminal. No microphone permission is required.
 - A reader thread continuously drains the bounded OS pipe. PCM byte fragmentation is
   reconstructed into 320-sample/20ms frames. The VAD queue keeps only the newest pending
   utterance while transcription/translation is busy.
-- Default RMS gate 0.006 (`--vad-threshold` can override), 500ms silence, at least 200ms
-  voiced energy, 100ms pre-roll and a 4-second max chunk for continuous game sound.
+- Default RMS gate 0.006 (`--vad-threshold` can override), 300ms silence, at least 200ms
+  voiced energy, 100ms pre-roll and a 2-second max chunk for continuous game sound.
   The microphone path retains its old 0.015 gate / 8-second cap.
 - An aggressive WebRTC speech detector now gates the energy VAD before ASR. This is not dialogue isolation. Music/effects can still trigger false speech and
   Whisper can hallucinate. Lower threshold may hear quiet speech but also more game noise.
@@ -88,3 +88,13 @@ conservative rule. OCR remains a separate selectable input, not simultaneously m
 This does not separate speakers or guarantee rejection of singing/music and effects.
 Strict detection may miss quiet or very short dialogue. Real-game acceptance is still needed.
 Reference: https://github.com/daanzu/py-webrtcvad-wheels
+
+## Latency tuning (0.3.2)
+
+App audio now finalizes after 300ms without detected speech (previously 500ms), and caps
+collection at 2 seconds (previously 4). Strict speech detection and OpenThai stay enabled.
+Shorter chunks can split sentences and reduce translation context. Timing logs now separate
+chunk duration, wait after last voiced frame, ASR, translation and TV acknowledgement.
+Existing post-utterance latency is not total latency from the start of dialogue.
+49 tests pass, including 2-second cap and 300ms silence boundary. Real-game timing and
+sentence quality need observation; these settings do not guarantee a latency target.

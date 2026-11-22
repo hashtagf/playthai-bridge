@@ -47,12 +47,12 @@ def test_silence_and_bounded_latest_utterance():
     assert source.next().audio.size > 0
 
 
-def test_audio_continuous_music_chunks_bounded_to_four_seconds():
+def test_audio_continuous_speech_chunks_bounded_to_two_seconds():
     source = RemotePlayAudio(binary="/unused", speech_detector=lambda frame: True)
     speech = (np.sin(np.arange(320) * 0.1) * 0.1).astype("<f4").tobytes()
-    for _ in range(200):
+    for _ in range(100):
         source.ingest(speech)
-    assert source.next().audio.size == 16000 * 4
+    assert source.next().audio.size == 16000 * 2
 
 
 def test_native_error_report_is_actionable_and_process_cleaned(monkeypatch):
@@ -131,3 +131,16 @@ def test_non_dialogue_cues(text, expected):
     from ps5_thai_sub.pipeline import dialogue_only
 
     assert dialogue_only(text) == expected
+
+
+def test_app_audio_finalizes_after_300ms_silence():
+    source = RemotePlayAudio(binary="/unused", speech_detector=lambda frame: True)
+    speech = (np.sin(np.arange(320) * 0.1) * 0.1).astype("<f4").tobytes()
+    silence = np.zeros(320, dtype="<f4").tobytes()
+    for _ in range(20):
+        source.ingest(speech)
+    for _ in range(14):
+        source.ingest(silence)
+    assert source.pending.empty()
+    source.ingest(silence)
+    assert source.pending.qsize() == 1

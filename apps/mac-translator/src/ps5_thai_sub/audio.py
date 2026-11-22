@@ -19,6 +19,7 @@ class Segmenter:
         self.speech_detector = speech_detector
         self.threshold = threshold
         self.max_frames = 400
+        self.silence_frames = 25
         self.pre: deque[np.ndarray] = deque(maxlen=5)
         self.frames: list[np.ndarray] = []
         self.silent = 0
@@ -45,7 +46,7 @@ class Segmenter:
             self.voiced += 1
         else:
             self.silent += 1
-        if self.silent >= 25 or len(self.frames) >= self.max_frames:
+        if self.silent >= self.silence_frames or len(self.frames) >= self.max_frames:
             result = (
                 Utterance(np.concatenate(self.frames), self.last_voice)
                 if self.voiced >= 10

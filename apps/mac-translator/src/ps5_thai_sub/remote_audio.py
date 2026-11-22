@@ -94,7 +94,8 @@ class RemotePlayAudio:
         self.segmenter = Segmenter(
             threshold, speech_detector if speech_detector is not None else SpeechDetector()
         )
-        self.segmenter.max_frames = 200  # 4s cap for continuous game music.
+        self.segmenter.max_frames = 100  # Bound collection to 2s before ASR.
+        self.segmenter.silence_frames = 15  # Finalize after 300ms without speech.
         self.framer = PCMFramer()
         self.ready = threading.Event()
         self.closed = threading.Event()

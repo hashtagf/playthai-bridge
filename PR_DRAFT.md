@@ -64,3 +64,5 @@ Actual Remote Play nonzero audio verified; 40 Python tests. Model presets apply 
 three input modes. Audio/translation quality remains a separate acceptance check.
 
 Speech filtering 0.3.1: strict WebRTC speech gate for Remote Play audio plus sound/lyric cue removal before translation. 48 Python tests pass; mypy passes. Includes loud non-speech rejection with a controlled detector, actual detector silence rejection, and cue preservation/removal tests. Real-game music/speech discrimination is not yet validated.
+
+0.3.2 latency tuning: app audio collection cap 4s → 2s; silence finalization 500ms → 300ms; stage timings added without dialogue logs. Strict speech filtering and OpenThai preserved. 49 tests and mypy pass. Shorter chunks trade sentence context for earlier results; total live latency still needs observation.

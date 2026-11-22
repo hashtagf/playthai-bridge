@@ -221,15 +221,26 @@ def main():
                     if time.monotonic() - utterance.ended_at > 10:
                         continue  # Drop stale work, never replay a dialogue backlog.
                     try:
+                        asr_start = time.monotonic()
                         text = dialogue_only(asr.transcribe(utterance.audio))
+                        asr_done = time.monotonic()
                         if not stable.accept(text):
                             continue
                         thai = translator.translate(text)
+                        translation_done = time.monotonic()
                         if time.monotonic() - utterance.ended_at > 15:
                             LOG.warning("Dropped stale translation")
                             continue
                         if publish(thai):
                             latency.record(utterance.ended_at)
+                            LOG.info(
+                                "Timing: chunk=%.2fs wait_after_voice=%.2fs asr=%.2fs translate=%.2fs publish=%.2fs",
+                                len(utterance.audio) / 16000,
+                                asr_start - utterance.ended_at,
+                                asr_done - asr_start,
+                                translation_done - asr_done,
+                                time.monotonic() - translation_done,
+                            )
                             LOG.info(latency.summary())
                     except (httpx.HTTPError, ValueError, KeyError, IndexError):
                         LOG.warning(
