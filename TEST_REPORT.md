@@ -135,3 +135,5 @@ independent chat/phone regions, bounded two-job processing and one publisher. 58
 tests pass plus native compilation. Live hybrid received video OCR and audio frames
 concurrently and sent subtitle/chat translations to TV. Live speech fallback, accuracy
 and long-run stability remain unverified. See docs/HYBRID.md for plan and limitations.
+
+0.5.0 adds `leonida-tv-bridge`: forwards new captions from Leonida Mac's enabled LAN web viewer to Mac preview/optional existing TV overlay, with no library extraction or AI calls. 62 tests and mypy pass. Actual SSE connection verified; new gameplay captions and TV delivery still require verification. See docs/LEONIDA.md.

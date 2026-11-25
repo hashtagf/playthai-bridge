@@ -199,3 +199,5 @@ Sony HDR/VRR settings as a workaround without separately recording the impact.
 ## Hybrid subtitles + speech + chat
 
 Use `--input remote-play-hybrid --ocr-chat --ocr-phone` to capture both inputs with a single native stream. OCR takes priority; speech fills gaps. See [Hybrid setup and limitations](docs/HYBRID.md). Existing single-input modes remain available.
+
+0.5.0 adds `leonida-tv-bridge`: forwards new captions from Leonida Mac's enabled LAN web viewer to Mac preview/optional existing TV overlay, with no library extraction or AI calls. 62 tests and mypy pass. Actual SSE connection verified; new gameplay captions and TV delivery still require verification. See docs/LEONIDA.md.
