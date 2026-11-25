@@ -7,9 +7,11 @@ import os
 import queue
 import threading
 import time
+from contextlib import ExitStack
 
 import httpx
 
+from .audio_relay import AudioRelay
 from .protocol import Caption
 from .publisher import Publisher, lan_host
 from .viewer import Preview
@@ -121,7 +123,14 @@ def main():
     parser.add_argument("--token", default=os.getenv("PS5_TV_TOKEN", ""))
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--preview-port", type=int, default=8766)
+    parser.add_argument(
+        "--audio",
+        action="store_true",
+        help="Relay actual Leonida app audio to TV (new APK required)",
+    )
     args = parser.parse_args()
+    if args.audio and not args.target:
+        parser.error("--audio requires --target TV_IP")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
     publisher = preview = None
@@ -134,8 +143,16 @@ def main():
         preview = Preview(args.preview_port)
         LOG.info("Leonida bridge preview: http://127.0.0.1:%d (no AI translation)", preview.port)
         retry_at = 0.0
-        with source:
+        with ExitStack() as resources:
+            resources.enter_context(source)
+            relay = (
+                resources.enter_context(AudioRelay(args.target, args.token, args.port))
+                if args.audio
+                else None
+            )
             while True:
+                if relay and relay.error:
+                    raise RuntimeError(relay.error)
                 try:
                     stamp, text = source.pending.get(timeout=0.5)
                 except queue.Empty:

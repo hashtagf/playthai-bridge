@@ -18,7 +18,7 @@ class MainActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
     private val refresh = object : Runnable {
         override fun run() {
-            status.text = "Permission: ${Settings.canDrawOverlays(this@MainActivity)} | ${OverlayService.status}"
+            status.text = "Permission: ${Settings.canDrawOverlays(this@MainActivity)} | ${OverlayService.status} | ${OverlayService.audioStatus}"
             handler.postDelayed(this, 1000)
         }
     }
@@ -44,6 +44,8 @@ class MainActivity : Activity() {
         button("Start Service") { command("start") }
         button("Show Thai Test Subtitle") { command("test") }
         button("Hide Subtitle") { command("hide") }
+        button("Enable Thai Audio") { command("audio-on") }
+        button("Mute Thai Audio") { command("audio-off") }
         button("Stop Service") { stopService(Intent(this, OverlayService::class.java)) }
         val row = LinearLayout(this)
         layout.addView(row)

@@ -13,7 +13,8 @@ import kotlin.concurrent.thread
 /** Small close-after-response HTTP subset. One worker, bounded backlog/body/header/time. */
 class CaptionServer(private val token: String, private val state: CaptionState,
                     private val onCaption: (Caption) -> Unit,
-                    bind: String = "0.0.0.0", port: Int = 8765) : AutoCloseable {
+                    bind: String = "0.0.0.0", port: Int = 8765,
+                    private val onAudio: ((AudioPacket) -> Boolean)? = null) : AutoCloseable {
     private val socket = ServerSocket().apply {
         reuseAddress = true
         bind(InetSocketAddress(InetAddress.getByName(bind), port), 4)
@@ -62,7 +63,7 @@ class CaptionServer(private val token: String, private val state: CaptionState,
         if (headers.containsKey("origin")) { reply(client, 403, "browser origins forbidden"); return }
         require(!headers.containsKey("transfer-encoding"))
         if (request[0] == "GET" && request[1] == "/health") { reply(client, 200, "ok"); return }
-        if (request[0] != "POST" || request[1] != "/v1/captions") { reply(client, 404, "not found"); return }
+        if (request[0] != "POST" || request[1] !in listOf("/v1/captions", "/v1/audio")) { reply(client, 404, "not found"); return }
         require(headers["content-type"]?.substringBefore(';')?.trim() == "application/json")
         val size = headers["content-length"]?.toIntOrNull() ?: -1
         if (size !in 1..8192) { reply(client, 413, "body limit"); return }
@@ -72,7 +73,14 @@ class CaptionServer(private val token: String, private val state: CaptionState,
             val read = input.read(bytes, count, size - count); require(read > 0); count += read
         }
         val decoder = Charsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT)
-        val caption = Caption.parse(decoder.decode(ByteBuffer.wrap(bytes)).toString())
+        val body = decoder.decode(ByteBuffer.wrap(bytes)).toString()
+        if (request[1] == "/v1/audio") {
+            if (onAudio == null) { reply(client, 404, "audio unsupported"); return }
+            val accepted = onAudio.invoke(AudioPacket.parse(body))
+            reply(client, if (accepted) 202 else 409, if (accepted) "audio accepted" else "audio disabled or session expired")
+            return
+        }
+        val caption = Caption.parse(body)
         if (state.accept(caption)) { onCaption(caption); reply(client, 202, "accepted") }
         else reply(client, 200, "duplicate")
     }

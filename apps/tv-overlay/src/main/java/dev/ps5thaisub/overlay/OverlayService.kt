@@ -14,6 +14,7 @@ class OverlayService : Service() {
     companion object {
         @Volatile var status = "Stopped"
         @Volatile var running = false
+        @Volatile var audioStatus = "Audio OFF"
         const val THAI = "เราต้องออกจากที่นี่ก่อนรุ่งสาง"
     }
     private val handler = Handler(Looper.getMainLooper())
@@ -21,6 +22,13 @@ class OverlayService : Service() {
     private var caption: TextView? = null
     private val expire = Runnable { hide() }
     private var server: CaptionServer? = null
+    private val audio = AudioPlayback()
+    private val audioWatchdog = object : Runnable {
+        override fun run() {
+            audio.tick(); audioStatus = audio.status
+            handler.postDelayed(this, 250)
+        }
+    }
     private val pending = java.util.concurrent.atomic.AtomicReference<Caption?>(null)
     private val drain = Runnable { pending.getAndSet(null)?.let { show(it.text, it.duration) } }
     override fun onCreate() {
@@ -31,19 +39,22 @@ class OverlayService : Service() {
         startForeground(1, Notification.Builder(this, "subtitles").setContentTitle("Thai subtitle overlay active").setContentText("Open app to stop").setSmallIcon(android.R.drawable.ic_menu_info_details).setContentIntent(open).build())
         wm = getSystemService(WindowManager::class.java)
         running = true; status = "Running • local test ready"
+        handler.post(audioWatchdog)
         try {
             server = CaptionServer(getSharedPreferences("settings", MODE_PRIVATE).getString("token", "") ?: "",
                 CaptionState { SystemClock.elapsedRealtime() }, { item ->
                     pending.set(item)
                     handler.removeCallbacks(drain)
                     handler.post(drain)
-                })
+                }, onAudio = { audio.receive(it) })
             status = "Running • LAN port 8765"
         } catch (_: Exception) { status = "Local overlay ready; LAN port unavailable (restart service)" }
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (!Settings.canDrawOverlays(this)) { status = "Overlay permission missing"; stopSelf(); return START_NOT_STICKY }
         when (intent?.action) {
+            "audio-on" -> audio.enable(true)
+            "audio-off" -> audio.enable(false)
             "test" -> show(THAI, 30000)
             "hide" -> hide()
             "style" -> caption?.let { style(it) }
@@ -72,6 +83,6 @@ class OverlayService : Service() {
         } catch (_: RuntimeException) { status = "Overlay rejected by device"; hide() }
     }
     private fun hide() { handler.removeCallbacks(expire); caption?.let { if (it.parent != null) wm.removeView(it) }; caption = null }
-    override fun onDestroy() { server?.close(); handler.removeCallbacksAndMessages(null); hide(); running = false; status = "Stopped"; super.onDestroy() }
+    override fun onDestroy() { server?.close(); audio.close(); audioStatus = "Audio OFF"; handler.removeCallbacksAndMessages(null); hide(); running = false; status = "Stopped"; super.onDestroy() }
     override fun onBind(intent: Intent?): IBinder? = null
 }

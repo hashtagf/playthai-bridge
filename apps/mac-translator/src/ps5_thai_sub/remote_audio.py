@@ -204,9 +204,7 @@ class RemotePlayAudio:
         except BaseException:
             self.close()
             raise
-        LOG.info(
-            "Remote Play audio active; strict speech filter enabled; microphone disabled; no recordings saved"
-        )
+        LOG.info("App audio active: %s; microphone disabled; no recordings saved", self.app)
         return self
 
     def next(self):

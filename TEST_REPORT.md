@@ -137,3 +137,5 @@ concurrently and sent subtitle/chat translations to TV. Live speech fallback, ac
 and long-run stability remain unverified. See docs/HYBRID.md for plan and limitations.
 
 0.5.0 adds `leonida-tv-bridge`: forwards new captions from Leonida Mac's enabled LAN web viewer to Mac preview/optional existing TV overlay, with no library extraction or AI calls. 62 tests and mypy pass. Actual SSE connection verified; new gameplay captions and TV delivery still require verification. See docs/LEONIDA.md.
+
+0.6.0 / TV APK 0.2.0: experimental actual-Leonida-audio relay via `leonida-tv-bridge --audio`, app-only native capture, 100ms PCM packets, authenticated bounded receiver, mute/enable controls and disconnect watchdog. 66 Python and 7 Android JVM tests pass; APK builds. Actual TTS capture and TV/HDMI playback remain unverified. See docs/LEONIDA_AUDIO.md.
