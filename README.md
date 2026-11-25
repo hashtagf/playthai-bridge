@@ -1,205 +1,141 @@
-# PS5 → Mac → Thai subtitles
+# PlayThai Bridge
 
-Working proof of concept: an Android TV overlay APK, authenticated Mac caption bridge,
-local speech/translation adapters and a Mac browser fallback. **BRAVIA 9 HDMI: NOT TESTED.**
-Keep PS5 on ordinary HDMI and DualSense paired directly to PS5. No capture card, Remote
-Play, Android phone, launcher replacement or paid service is required.
+**ซับไทยและเสียงไทยจาก Mac ไป Android TV ขณะเล่น PS5 ผ่าน HDMI**
 
-Start with [M0 APK installation and physical gate](docs/M0_INSTALL.md). The first test
-is **Show Thai Test Subtitle → switch to PS5 HDMI**. If Sony blocks the overlay, record
-FAIL and use the Mac viewer. Do not continue TV-dependent deployment on a failed gate.
+โปรเจกต์ทดลองสำหรับส่งคำแปลจาก Leonida หรือระบบ OCR/AI ของเราไปแสดงบนทีวี
+Mac เป็นตัวประมวลผล ส่วน APK บน Android TV แสดงซับและรับเสียงผ่าน LAN
+ไม่ใช่ผลิตภัณฑ์อย่างเป็นทางการของ Sony, PlayStation หรือ Leonida
 
-## Build and install the APK
+## เลือกโหมดใช้งาน
 
-Requires JDK 17+ and Android SDK 35 (Android Studio can supply both).
+| โหมด | สิ่งที่ต้องเปิดบน Mac | สถานะ |
+|---|---|---|
+| Leonida → ซับทีวี | Leonida และ Web Viewer | เชื่อม SSE ได้แล้ว; ยังต้องตรวจส่งซับใหม่ถึงทีวีจริง |
+| Leonida → ซับ + เสียงทีวี | เพิ่มอ่านออกเสียง และ `--audio` | ทดลอง; ยังไม่ยืนยันการจับเสียง TTS จริงและเสียงขณะเปิด HDMI |
+| Remote Play → OCR → AI | Remote Play, Ollama | อ่านซับอังกฤษ/แชท/มือถือในเกมได้ตามพื้นที่ที่ตั้ง |
+| Remote Play → เสียง + OCR → AI | เพิ่ม whisper.cpp | Hybrid ให้ OCR มาก่อน แล้วใช้เสียงเติมช่วงไม่มีซับ |
+
+**เสียงทีวีต้องใช้ APK 0.2.0 ขึ้นไป**; Mac package ปัจจุบัน 0.6.0
+การแสดง overlay และการผสมเสียงขณะดู HDMI ขึ้นกับรุ่นทีวี ยังไม่รับรองทุกเครื่อง
+
+## 1. เตรียมโปรเจกต์บน Mac
+
+ต้องมี Python 3.12+, [uv](https://docs.astral.sh/uv/) และ Git
+โหมดจับภาพ/เสียงแอปใช้ macOS 14+ และ Xcode Command Line Tools
+
 ```sh
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-export ANDROID_HOME="$HOME/Library/Android/sdk"
-export PATH="$ANDROID_HOME/platform-tools:$PATH"
-./gradlew assembleDebug lintDebug testDebugUnitTest
-adb install -r apps/tv-overlay/build/outputs/apk/debug/tv-overlay-debug.apk
-adb shell am start -n dev.ps5thaisub.overlay/.MainActivity
+git clone https://github.com/hashtagf/playthai-bridge.git
+cd playthai-bridge
+# ระหว่างรอ review งานอยู่บน branch นี้
+git switch feat/ps5-thai-subtitles
+uv sync --project apps/mac-translator --locked
+xcode-select --install  # เฉพาะเครื่องที่ยังไม่มี Command Line Tools
 ```
-Enable TV debugging and connect/pair first: exact options and cleanup are in the
-[M0 guide](docs/M0_INSTALL.md). Open Request Overlay Permission; grant draw-over permission;
-press Show Thai Test Subtitle. Hide Subtitle and Stop Service are explicit controls.
-The local test lasts 30 seconds; network captions last 250ms–15s.
 
-## Mac setup and demo (no AI download)
+อนุญาต Screen Recording ให้ Terminal/แอปที่ใช้รันเมื่อ macOS ขอ แล้วเปิดโปรแกรมใหม่
+สำหรับ Leonida ให้ติดตั้งแยกจาก [เว็บไซต์ผู้พัฒนา](https://www.leonidasubth.com/)
+โปรเจกต์นี้ไม่รวมแอปหรือคลังคำแปลของ Leonida
 
-Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required. Commands below run from
-`apps/mac-translator`:
+## 2. ติดตั้ง APK บน Android TV
+
+APK สำหรับทดสอบอยู่ใน GitHub Actions → Build and test → Android artifact
+หรือสร้างเองตาม [คู่มือนักพัฒนา](docs/DEVELOPMENT.md)
+แตก ZIP ก่อนติดตั้งไฟล์ `tv-overlay-debug.apk`
+
 ```sh
-cd apps/mac-translator
-uv sync --locked
-uv run ps5-thai-sub run --demo
-# Open http://127.0.0.1:8766 in a browser. Ctrl-C stops.
-uv run ps5-thai-sub run --demo --demo-once
+adb connect TV_IP:5555   # ใช้ที่อยู่/พอร์ตที่ทีวีแสดง; บางเครื่องต้อง adb pair ก่อน
+adb install -r /path/to/tv-overlay-debug.apk
 ```
-The three fixture translations are deterministic test data, not model-quality evidence.
-The viewer uses large Thai text and automatically hides expired captions. It is included
-in the Python package, so installation does not depend on repository-relative assets.
 
-## Pair Mac to TV
+1. เปิด **PlayThai Bridge** บนทีวี → **Request Overlay Permission** และอนุญาต
+2. กด **Start Service** → **Show Thai Test Subtitle** แล้วสลับไป HDMI ของ PS5
+3. ถ้าซับไม่ปรากฏเหนือ HDMI ให้ใช้หน้าดูซับบน Mac แทนและตรวจ [M0 guide](docs/M0_INSTALL.md)
+4. จด IP และ token จากหน้าจอแอปทีวี ห้ามแชร์ภาพ token
+5. ถ้าต้องการเสียง กด **Enable Thai Audio** ทุกครั้งหลังเริ่ม service
 
-Start Service on TV; read the TV IP and random pairing token from its screen. Mac IP
-entry is unnecessary because the Mac initiates HTTP requests. Keep both on a trusted
-private LAN. Set `TV_IP` to the displayed address and enter the token without shell history:
+Debug APK จาก CI อาจใช้ signing key ต่างจาก APK ที่เคยติดตั้ง ถ้าอัปเดตแล้วขึ้น
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE` ให้ใช้ APK ที่เซ็นด้วย key เดิม หรือถอนตัวเก่า
+แล้วติดตั้งใหม่ (จะสูญเสียการตั้งค่าและ token ต้องจับคู่ใหม่)
+
+## 3. เชื่อม Leonida กับทีวี
+
+Mac และทีวีต้องอยู่ LAN ที่เข้าถึงกันได้ เปิด Leonida เชื่อม Remote Play ตามคู่มือของแอป
+แล้วเปิด **Web Viewer** และเปิด **อ่านออกเสียง** หากจะใช้เสียง
+
+จากโฟลเดอร์โปรเจกต์ ใช้ Terminal แบบ zsh บน Mac:
+
 ```sh
-export TV_IP=192.168.1.50  # replace with your TV address
-read -s PS5_TV_TOKEN
+export TV_IP=192.168.1.119        # เปลี่ยนให้ตรงทีวีปัจจุบัน
+export MAC_LAN_IP=192.168.1.61   # เปลี่ยนให้ตรง Mac ปัจจุบัน ไม่ใช่ IP ของทีวี
+read -s 'PS5_TV_TOKEN?ใส่ token จากทีวี: '
 export PS5_TV_TOKEN
-uv run send-test-caption --tv-host "$TV_IP" --token "$PS5_TV_TOKEN" --text "เราต้องออกจากที่นี่ก่อนรุ่งสาง"
-uv run ps5-thai-sub run --demo --target "$TV_IP" --token "$PS5_TV_TOKEN"
-# Empty text hides immediately:
-uv run send-test-caption --tv-host "$TV_IP" --text ""
+uv run --project apps/mac-translator send-test-caption --tv-host "$TV_IP" --text "ทดสอบซับไทยจาก Mac"
+
+# ส่งเฉพาะซับ
+uv run --project apps/mac-translator leonida-tv-bridge --source "$MAC_LAN_IP" --target "$TV_IP"
 ```
-Token environment variable is preferable to `--token`, which can appear in process lists.
-Examples show both because the CLI supports the requested flag. The TV displays the token
-only in its launcher screen; do not share screenshots of that screen without redaction.
 
-TCP 8765 must reach the TV from Mac. Guest Wi-Fi/client isolation may block it; no router
-port forward is needed. The listener rejects public-source addresses and requires auth
-on health as well as captions. HTTP is not encrypted: use only a trusted isolated LAN.
-Mac browser viewer binds loopback only. See [protocol and security limits](packages/protocol/README.md).
+เปิด `http://127.0.0.1:8766` เพื่อดู preview บน Mac ได้ด้วย
+ตัวส่งรอข้อความใหม่ ไม่ส่งประวัติเก่าตอนเชื่อมต่อ หากต้องการทดสอบโดยไม่มีทีวีให้ตัด `--target` ออก
+ใช้ LAN IP ของ Mac ที่เปิดหน้า Leonida พอร์ต 8765 ได้จริง; IP ของ VPN อาจใช้ไม่ได้
+หยุดตัวส่งเดิมด้วย Ctrl-C ก่อนเปลี่ยนโหมด
 
-## Remote Play audio (new)
+### เพิ่มเสียง (ทดลอง)
 
-Capture audio directly from PS Remote Play instead of the room microphone:
 ```sh
-uv run --project apps/mac-translator ps5-thai-sub run --input remote-play-audio --target "$TV_IP" --model openthai
+# ระหว่างตรวจ ให้กดทดลองฟังใน Leonida
+uv run --project apps/mac-translator leonida-audio-check --seconds 15
+
+# หลังเปิด Enable Thai Audio บนทีวี
+uv run --project apps/mac-translator leonida-tv-bridge --source "$MAC_LAN_IP" --target "$TV_IP" --audio
 ```
-Keep app audio enabled, Whisper and Ollama running. No loopback driver is needed.
-[Setup, permissions and audio-level checks](docs/REMOTE_PLAY_AUDIO.md). This is a separate
-input mode from OCR; it still hears game music/effects mixed by Remote Play.
 
-## Remote Play OCR (new)
+ถ้า peak เป็นศูนย์ทั้งที่ Mac พูดอยู่ ยังใช้เส้นทางนี้ไม่ได้: เสียง TTS อาจออกจาก process อื่น
+ตัวจับเสียงจำกัดเฉพาะ Leonida ไม่จับเสียงระบบทั้งหมดเป็นทางเลี่ยง
+ยังไม่มีค่าความหน่วง end-to-end ที่วัดกับทีวีจริง; แพ็กเก็ต 100ms ไม่ใช่เวลารวม
+รายละเอียดใน [คู่มือเสียง Leonida](docs/LEONIDA_AUDIO.md)
 
-To read English subtitles directly from PS Remote Play instead of the microphone, use
-`--input remote-play-ocr`. [Setup and region calibration](docs/REMOTE_PLAY_OCR.md).
-This optional mode uses Apple ScreenCaptureKit + Vision, then the same Thai translator
-and TV bridge. It needs Screen Recording permission, not Whisper. It is implemented and
-synthetic-window tested; actual Remote Play game-session validation is pending.
+หยุดด้วย Ctrl-C และ **Mute Thai Audio** / **Stop Service** บนทีวี
 
-## Choose the translation model
+## 4. ใช้ AI ของเราแทน Leonida
 
-OpenThai is the user-selected default. No APK update is required. From repository root:
+ตั้ง Ollama + OpenThai และ whisper.cpp ตาม [คู่มือติดตั้ง AI](docs/DEVELOPMENT.md#local-ai-on-apple-silicon)
+เปิด PS Remote Play ให้เห็นภาพเกมและซับอังกฤษ จากนั้น:
+
 ```sh
-uv run --project apps/mac-translator ps5-thai-sub models
-# Use OpenThai (also selected when --model is omitted):
+# อ่านซับจากภาพอย่างเดียว ไม่ต้องใช้ Whisper
 uv run --project apps/mac-translator ps5-thai-sub run --input remote-play-ocr --target "$TV_IP" --model openthai
-# Switch to Gemma by stopping the running CLI and starting again:
-uv run --project apps/mac-translator ps5-thai-sub run --input remote-play-ocr --target "$TV_IP" --model gemma
+
+# อ่านซับ + แชท + มือถือในเกม และฟังเสียงพร้อมกัน
+uv run --project apps/mac-translator ps5-thai-sub run --input remote-play-hybrid --ocr-chat --ocr-phone --target "$TV_IP" --model openthai
 ```
-Microphone, Remote Play audio and OCR modes support the same choice. Full provider model IDs still
-work. Priority: explicit `--model` → `TRANSLATION_MODEL` environment → OpenThai default.
-An old exported `TRANSLATION_MODEL=gemma3:4b` overrides the default; unset it or use
-`--model openthai`. Startup logs identify the selected model. Switching is on restart,
-not a live browser control. Demo mode continues to use fixtures, not AI.
 
-This default is a preference, not a claim that OpenThai is more accurate. Both models
-made meaningful translation mistakes in the [comparison](docs/TRANSLATION_COMPARISON.md).
+พื้นที่ OCR ต้องปรับให้ตรงเกม/ขนาดหน้าต่าง ไม่ได้รู้ตำแหน่งแชททุกเกมอัตโนมัติ
+ดู [OCR](docs/REMOTE_PLAY_OCR.md), [เสียง Remote Play](docs/REMOTE_PLAY_AUDIO.md),
+[Hybrid](docs/HYBRID.md) และ [ผลเปรียบเทียบโมเดล](docs/TRANSLATION_COMPARISON.md)
+OpenThai เป็นค่าเริ่มต้น เปลี่ยนเป็น `--model gemma` ได้; AI ยังแปลผิดได้
+อย่าเปิดตัวส่งหลายตัวไปทีวีเดียวกันพร้อมกัน
 
-## Local AI on Apple Silicon
+## แก้ปัญหาเบื้องต้น
 
-Use a warm whisper.cpp server for English ASR, plus Ollama for Thai translation.
-These are external dependencies; no upstream source is modified or copied into this repo.
-Tested runtime versions and model observations are in [TEST_REPORT.md](TEST_REPORT.md).
-From repository root, install the ASR runtime and download an English model:
-```sh
-brew install whisper-cpp
-mkdir -p artifacts/models
-curl -L --fail https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin -o artifacts/models/ggml-base.en.bin
-whisper-server -m artifacts/models/ggml-base.en.bin --host 127.0.0.1 --port 18080 -l en
-```
-Keep that terminal open. In another terminal with Ollama installed/running:
-```sh
-ollama pull openthai/openthai-1.5-7b
-# If Ollama is not already running: ollama serve
-cd apps/mac-translator
-uv run ps5-thai-sub devices
-uv run ps5-thai-sub run --input microphone --target "$TV_IP" --token "$PS5_TV_TOKEN" --transcriber whisper-server --translator openai-compatible --whisper-url http://127.0.0.1:18080 --model openthai
-```
-Omit `--target` for Mac-only fallback. Choose `--device N` from the device list if needed.
-macOS may ask to allow microphone access for the terminal/app that launched Python;
-check System Settings → Privacy & Security → Microphone. Put Mac near TV speakers,
-reduce room noise, and use `--vad-threshold 0.02` if game music triggers excess chunks.
-Energy VAD is not a dialogue-isolation model and may miss quiet lines.
-
-Intel Macs can use whisper.cpp CPU (`--no-gpu` on the server); inference may be slower.
-Metal/Core ML availability depends on hardware/build; this client makes no Apple
-Translation language-pair assumption. PortAudio via sounddevice must support 16kHz mono
-on the selected device. This proof of concept does not resample incompatible devices.
-
-To use a different compatible translation provider, export the variables from
-[.env.example](apps/mac-translator/.env.example), or pass `--translation-url` and `--model`.
-`.env` files are **not** automatically loaded. Use an HTTPS endpoint for cloud services;
-that sends transcripts/context to that provider and may incur its charges. No cloud
-credentials are bundled. Default configuration stays on localhost.
-
-Only final utterances are published. A three-phrase context window and bounded cache are
-in memory. Prompts request proper-name preservation and no additions; AI can still
-mishear or mistranslate. No algorithm guarantees hallucination-free output. Have a fluent
-Thai reader evaluate the chosen model on real game dialogue. Client logs omit live audio,
-transcripts and tokens. Do not enable verbose ASR/provider logging for private dialogue.
-
-## Tests, packaging and review
-
-```sh
-./gradlew assembleDebug lintDebug testDebugUnitTest
-cd apps/mac-translator
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy --config-file pyproject.toml src
-uv run pytest -q
-uv build
-```
-Optional real-model synthetic audio smoke (requires macOS `say` and both model servers):
-```sh
-uv run --project apps/mac-translator python scripts/ai_smoke.py
-```
-It saves fixture outputs/timings to `docs/evidence/ai-smoke.json`; these are synthetic
-processing measurements, not microphone/gameplay latency.
-
-Optional installed-emulator test, from repository root:
-```sh
-uv run --project apps/mac-translator python scripts/emulator_smoke.py --serial emulator-5556
-```
-It requires the debug APK installed, overlay permission granted and a landscape emulator;
-uses run-as only to read the disposable emulator token, never prints it, and stops the
-service afterwards. It is intentionally refused on physical devices.
-
-The branch contains small milestone commits. No remote was configured during development;
-[PR_DRAFT.md](PR_DRAFT.md) is ready to use with a GitHub draft PR after setting a remote.
-APK and wheel packaging are local artifacts; CI builds APK and runs tests without making
-physical-device claims. Review [test evidence](TEST_REPORT.md), [limitations](KNOWN_LIMITATIONS.md),
-[architecture](docs/ARCHITECTURE.md), [decisions](docs/ADR.md), [status](docs/STATUS.md), and
-[physical acceptance worksheet](docs/MANUAL_ACCEPTANCE.md).
-
-## Troubleshooting
-
-| Symptom | Next step |
+| อาการ | ตรวจอะไร |
 |---|---|
-| Draw-over screen missing | Optional ordinary `appops` grant in M0 guide; no root required |
-| Local text visible, HDMI invisible | Record physical gate FAIL; use Mac viewer |
-| 401 | Re-enter current TV token; app data reset rotates it |
-| TV unavailable | Start Service from visible app; check LAN IP, isolation, firewall and port 8765 |
-| LAN port unavailable in TV status | Stop/Start Service; check another app using 8765 |
-| No microphone | Run devices; grant macOS permission; choose supported input |
-| No captions with music | Tune threshold/volume/placement; energy VAD cannot isolate speakers |
-| ASR startup failure | Start whisper-server and check URL/port/model; first Metal compilation takes time |
-| Translation failure | Check Ollama model downloaded, server running, base URL and credentials |
-| Captions lag behind | Model may be too slow; stale work is dropped; use smaller ASR model or faster provider |
-| Service dies after standby | Reopen TV app and Start; there is deliberately no automatic boot start |
+| 401 | token ปัจจุบันจากแอปทีวี |
+| ต่อทีวีไม่ได้ | Start Service, IP ปัจจุบัน, Wi-Fi isolation/firewall, TCP 8765 |
+| เสียง 404 | APK เก่า ต้องอัปเดต 0.2.0 |
+| เสียง 409 | กด Enable Thai Audio; ตรวจ service/session |
+| ซับไม่ขึ้นตอนเปิด HDMI | ทดสอบ overlay เฉพาะรุ่น; ใช้ Mac preview หากถูกบล็อก |
+| ไม่เห็นซับทันทีหลังเชื่อม Leonida | รอประโยคใหม่; ไม่ replay ประวัติ |
+| เสียง/ซับช้า | ตรวจคิวอ่านออกเสียง Leonida หรือเวลา AI; ยังไม่มี SLA ความหน่วง |
 
-Stop capture with Ctrl-C and Stop Service on TV when finished. Remove the debug APK and
-revoke debugging/overlay permissions using the M0 cleanup steps. Do not change PS5 or
-Sony HDR/VRR settings as a workaround without separately recording the impact.
+HTTP ระหว่าง Mac–TV ไม่เข้ารหัส ใช้เฉพาะ LAN ที่เชื่อถือได้ ไม่เปิดพอร์ตออกอินเทอร์เน็ต
+ไม่เก็บ token ใน Git; `.env` ไม่ถูกโหลดอัตโนมัติ
 
-## Hybrid subtitles + speech + chat
+## พัฒนาและตรวจสอบ
 
-Use `--input remote-play-hybrid --ocr-chat --ocr-phone` to capture both inputs with a single native stream. OCR takes priority; speech fills gaps. See [Hybrid setup and limitations](docs/HYBRID.md). Existing single-input modes remain available.
+[Build/test และ AI setup](docs/DEVELOPMENT.md) · [ผลทดสอบ](TEST_REPORT.md) ·
+[ข้อจำกัด](KNOWN_LIMITATIONS.md) · [รายการตรวจฮาร์ดแวร์](docs/MANUAL_ACCEPTANCE.md)
 
-0.5.0 adds `leonida-tv-bridge`: forwards new captions from Leonida Mac's enabled LAN web viewer to Mac preview/optional existing TV overlay, with no library extraction or AI calls. 62 tests and mypy pass. Actual SSE connection verified; new gameplay captions and TV delivery still require verification. See docs/LEONIDA.md.
-
-0.6.0 / TV APK 0.2.0: experimental actual-Leonida-audio relay via `leonida-tv-bridge --audio`, app-only native capture, 100ms PCM packets, authenticated bounded receiver, mute/enable controls and disconnect watchdog. 66 Python and 7 Android JVM tests pass; APK builds. Actual TTS capture and TV/HDMI playback remain unverified. See docs/LEONIDA_AUDIO.md.
+ล่าสุดผ่าน 66 Python tests, 7 Android JVM tests, mypy, Ruff และ build/lint APK
+การทดสอบอัตโนมัติไม่ยืนยันเสียง Leonida จริง, HDMI audio mixing, ARC/eARC,
+คุณภาพคำแปลหรือ latency ระหว่างเล่นจริง ยังต้องตรวจบน Mac/ทีวีของผู้ใช้

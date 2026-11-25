@@ -1,7 +1,7 @@
 [project]
 name = "ps5-thai-sub"
 version = "0.6.0"
-description = "Microphone English to Thai subtitles for a LAN Android TV overlay"
+description = "PlayThai Bridge: Mac subtitles and app audio to an Android TV overlay"
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28,<0.29",

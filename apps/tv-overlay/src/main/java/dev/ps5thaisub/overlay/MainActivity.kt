@@ -33,7 +33,7 @@ class MainActivity : Activity() {
         setContentView(ScrollView(this).apply { addView(layout) })
         fun label(text: String) = TextView(this).apply { this.text = text; textSize = 16f; layout.addView(this) }
         fun button(text: String, action: () -> Unit) { layout.addView(Button(this).apply { this.text = text; setOnClickListener { action() } }) }
-        label("PS5 Thai Subtitles • HDMI feasibility test")
+        label("PlayThai Bridge • HDMI feasibility test")
         status = label("")
         val ips = NetworkInterface.getNetworkInterfaces().toList().flatMap { it.inetAddresses.toList() }.filter { it is Inet4Address && it.isSiteLocalAddress }.joinToString { it.hostAddress ?: "" }
         label("TV address: $ips :8765 | Token: ${prefs.getString("token", "")}")
