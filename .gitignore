@@ -1,0 +1,12 @@
+*.iml
+.gradle/
+**/build/
+local.properties
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+artifacts/
+*.egg-info/

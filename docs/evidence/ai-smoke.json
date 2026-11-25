@@ -1,0 +1,32 @@
+{
+  "kind": "synthetic WAV → real ASR → real translation → optional publish acknowledgement",
+  "model": "gemma3:4b",
+  "tv_published": true,
+  "not_measured": "actual microphone EOU, VAD wait, physical panel latency or human-rated quality",
+  "samples": [
+    {
+      "fixture": "We have to leave before dawn.",
+      "asr": "We have to leave before dawn.",
+      "reference": "เราต้องออกจากที่นี่ก่อนรุ่งสาง",
+      "model_output": "เราต้องออกก่อนรุ่งสาง",
+      "processing_seconds": 0.19621087505947798
+    },
+    {
+      "fixture": "Stay close to me.",
+      "asr": "Stay close to me",
+      "reference": "อยู่ใกล้ฉันไว้",
+      "model_output": "คอยอยู่ใกล้ฉันด้วย",
+      "processing_seconds": 0.21293499995954335
+    },
+    {
+      "fixture": "The gate is locked.",
+      "asr": "The gate is locked.",
+      "reference": "ประตูถูกล็อกอยู่",
+      "model_output": "ประตูถูกล็อค",
+      "processing_seconds": 0.18648720800410956
+    }
+  ],
+  "n": 3,
+  "p50_seconds": 0.19621087505947798,
+  "p95_seconds": 0.2112625874695368
+}
