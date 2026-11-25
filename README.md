@@ -26,8 +26,6 @@ Mac เป็นตัวประมวลผล ส่วน APK บน Androi
 ```sh
 git clone https://github.com/hashtagf/playthai-bridge.git
 cd playthai-bridge
-# ระหว่างรอ review งานอยู่บน branch นี้
-git switch feat/ps5-thai-subtitles
 uv sync --project apps/mac-translator --locked
 xcode-select --install  # เฉพาะเครื่องที่ยังไม่มี Command Line Tools
 ```
